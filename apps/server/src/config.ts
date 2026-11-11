@@ -122,15 +122,16 @@ export function readConfig(): Config {
   const typesafeApiKey = process.env.TYPESAFE_API_KEY?.trim();
   if (jevMode === "live" && !typesafeApiKey)
     throw new Error("JEV_MODE=live requires a nonblank TYPESAFE_API_KEY");
-  const computerProvider: ComputerProvider =
-    (process.env.COMPUTER_PROVIDER?.trim() as ComputerProvider) ||
-    (process.env.E2B_API_KEY ? "e2b-desktop" : "local");
+  const rawProvider = process.env.COMPUTER_PROVIDER?.trim();
   if (
-    computerProvider !== "docker" &&
-    computerProvider !== "e2b-desktop" &&
-    computerProvider !== "local"
-  )
+    rawProvider &&
+    rawProvider !== "docker" &&
+    rawProvider !== "e2b-desktop" &&
+    rawProvider !== "local"
+  ) {
     throw new Error("COMPUTER_PROVIDER must be docker, e2b-desktop or local");
+  }
+  const computerProvider: ComputerProvider = (rawProvider as ComputerProvider) || "docker";
   const e2bApiKey = process.env.E2B_API_KEY?.trim();
   if (process.env.COMPUTER_ENABLED === "true" && computerProvider === "e2b-desktop") {
     if (!e2bApiKey)
@@ -165,8 +166,7 @@ export function readConfig(): Config {
     agentBackend: backend,
     agentUrl: process.env.AGENT_URL,
     agentToken: process.env.AGENT_TOKEN,
-    intelligenceApiKey:
-      process.env.CPK_INTELLIGENCE_API_KEY?.trim() || "test-project-key-never-sent",
+    intelligenceApiKey: required("CPK_INTELLIGENCE_API_KEY", intelligenceKeyRequiredMessage),
     googleClientId: process.env.GOOGLE_CLIENT_ID,
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
     googleRedirectUri: `${publicUrl}/api/google/callback`,
@@ -182,8 +182,13 @@ export function readConfig(): Config {
     computerE2bTemplate: process.env.COMPUTER_E2B_TEMPLATE?.trim() || "desktop",
     e2bApiKey,
     allowedOrigins: (
-      process.env.ALLOWED_ORIGINS ?? "http://localhost:8081,http://127.0.0.1:8081"
-    ).split(","),
+      process.env.ALLOWED_ORIGINS ??
+      process.env.CORS_ORIGIN ??
+      "http://localhost:8081,http://127.0.0.1:8081"
+    )
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
     // Only trust X-Forwarded-For/X-Real-IP when the deployment is known to sit
     // behind a proxy that sets them; otherwise a direct caller can spoof them.
     trustProxy: process.env.TRUST_PROXY === "true",

@@ -1,15 +1,38 @@
 import { Platform } from "react-native";
 import { readApiPayload } from "./api-response";
 
-export const API_URL = (
-  process.env.EXPO_PUBLIC_API_URL ||
-  (Platform.OS === "android" ? "http://10.0.2.2:8787" : "http://localhost:8787")
-).replace(/\/$/, "");
+declare const __DEV__: boolean;
+
+function resolveApiUrl(): string {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (envUrl) {
+    return envUrl.replace(/\/$/, "");
+  }
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    return (Platform.OS === "android" ? "http://10.0.2.2:8787" : "http://localhost:8787").replace(
+      /\/$/,
+      "",
+    );
+  }
+  return "";
+}
+
+export const API_URL = resolveApiUrl();
+
+function assertApiUrl(): string {
+  if (!API_URL) {
+    throw new Error(
+      "Configuration error: EXPO_PUBLIC_API_URL is missing. Production builds require a configured API URL.",
+    );
+  }
+  return API_URL;
+}
 
 export class MuseApi {
   constructor(readonly token: string) {}
   async request<T>(path: string, body?: unknown, method?: string): Promise<T> {
-    const response = await fetch(`${API_URL}${path}`, {
+    const baseUrl = assertApiUrl();
+    const response = await fetch(`${baseUrl}${path}`, {
       method: method ?? (body === undefined ? "GET" : "POST"),
       headers: {
         Authorization: `Bearer ${this.token}`,
@@ -23,14 +46,15 @@ export class MuseApi {
     return payload;
   }
   url(path: string) {
-    return path.startsWith("http") ? path : `${API_URL}${path}`;
+    return path.startsWith("http") ? path : `${API_URL || ""}${path}`;
   }
 }
 
 export async function createSession(
   accessKey?: string,
 ): Promise<{ token: string; mode: "sample" | "live" }> {
-  const response = await fetch(`${API_URL}/api/session`, {
+  const baseUrl = assertApiUrl();
+  const response = await fetch(`${baseUrl}/api/session`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ accessKey }),
