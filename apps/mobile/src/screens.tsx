@@ -1182,6 +1182,8 @@ export function ActivityScreen() {
     </View>
   );
 }
+const OPENBOT_URL = process.env.EXPO_PUBLIC_OPENBOT_URL?.trim() || "";
+
 export function ConnectionsScreen({ query = "" }: { query?: string }) {
   const { workspace: w, api, refresh, notify, open } = useWorkspace();
   const [selected, setSelected] = useState<string>();
@@ -1381,7 +1383,7 @@ export function ConnectionsScreen({ query = "" }: { query?: string }) {
             <View style={{ gap: 14 }}>
               <Text style={s.text}>
                 {w.runtime.openbotConfigured
-                  ? "GangNiagaBot computer backend is connected on http://127.0.0.1:3001."
+                  ? `GangNiagaBot computer backend is connected${OPENBOT_URL ? ` on ${OPENBOT_URL}` : ""}.`
                   : "The GangNiagaBot adapter is available in this open-source project. A live GangNiagaBot backend has not been configured."}
               </Text>
               <Text style={s.muted}>
@@ -1391,7 +1393,7 @@ export function ConnectionsScreen({ query = "" }: { query?: string }) {
               </Text>
               {w.runtime.openbotConfigured && (
                 <View style={{ gap: 8, marginTop: 8 }}>
-                  <SettingsLine label="Backend URL" value="http://127.0.0.1:3001" />
+                  <SettingsLine label="Backend URL" value={OPENBOT_URL || "Configured"} />
                   <SettingsLine label="Agent ID" value="assistant" />
                   <SettingsLine label="Status" value="Live (GangNiagaBot Container)" />
                 </View>

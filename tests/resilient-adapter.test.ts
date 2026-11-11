@@ -64,7 +64,19 @@ test("createResilientAdapter seamlessly fails over when primary model throws 429
     },
   };
 
-  const resilient = createResilientAdapter(["groq/qwen/qwen3.8-27b", "kilo/kilo-auto/free"]);
+  const prevGroq = process.env.GROQ_API_KEY;
+  const prevKilo = process.env.KILO_API_KEY;
+  process.env.GROQ_API_KEY = prevGroq || "test-groq-key";
+  process.env.KILO_API_KEY = prevKilo || "test-kilo-key";
+  let resilient: ReturnType<typeof createResilientAdapter>;
+  try {
+    resilient = createResilientAdapter(["groq/qwen/qwen3.8-27b", "kilo/kilo-auto/free"]);
+  } finally {
+    if (prevGroq === undefined) delete process.env.GROQ_API_KEY;
+    else process.env.GROQ_API_KEY = prevGroq;
+    if (prevKilo === undefined) delete process.env.KILO_API_KEY;
+    else process.env.KILO_API_KEY = prevKilo;
+  }
   // Replace internal adapters with mock adapters
   (resilient as any).mockPrimary = mockPrimary;
 

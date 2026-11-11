@@ -26,8 +26,10 @@ export interface ObscuraFetchResult {
 export async function isObscuraAvailable(): Promise<boolean> {
   return new Promise((resolve) => {
     const isWin = process.platform === "win32";
-    const bin = isWin ? "obscura.exe" : "obscura";
-    const proc = spawn(bin, ["--version"], { stdio: "ignore" });
+    const bin = process.env.OBSCURA_BIN?.trim() || (isWin ? "obscura.exe" : "obscura");
+    const useShell =
+      isWin && (bin.toLowerCase().endsWith(".cmd") || bin.toLowerCase().endsWith(".bat"));
+    const proc = spawn(bin, ["--version"], { stdio: "ignore", shell: useShell });
     proc.on("error", () => resolve(false));
     proc.on("close", (code) => resolve(code === 0));
   });
@@ -50,7 +52,7 @@ export function obscuraFetch(options: ObscuraFetchOptions): Promise<ObscuraFetch
     signal?.throwIfAborted();
 
     const isWin = process.platform === "win32";
-    const bin = isWin ? "obscura.exe" : "obscura";
+    const bin = process.env.OBSCURA_BIN?.trim() || (isWin ? "obscura.exe" : "obscura");
     const args = ["fetch", url, "--dump", dump, "--timeout", String(timeoutSec), "--quiet"];
 
     if (stealth) args.push("--stealth");
@@ -62,8 +64,11 @@ export function obscuraFetch(options: ObscuraFetchOptions): Promise<ObscuraFetch
     let stderr = "";
     let settled = false;
 
+    const useShell =
+      isWin && (bin.toLowerCase().endsWith(".cmd") || bin.toLowerCase().endsWith(".bat"));
     const child = spawn(bin, args, {
       stdio: ["ignore", "pipe", "pipe"],
+      shell: useShell,
     });
 
     const cleanup = () => {

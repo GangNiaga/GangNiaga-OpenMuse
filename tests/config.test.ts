@@ -130,6 +130,10 @@ test("computer provider defaults to Docker and e2b-desktop requires a server-sid
     process.env.CPK_INTELLIGENCE_API_KEY = "test-project-key-never-sent";
     for (const key of keys.slice(0, 5)) delete process.env[key];
     assert.equal(readConfig().computerProvider, "docker");
+    process.env.COMPUTER_PROVIDER = "local";
+    assert.equal(readConfig().computerProvider, "local");
+    process.env.COMPUTER_PROVIDER = "docker";
+    assert.equal(readConfig().computerProvider, "docker");
     process.env.COMPUTER_DEPLOYMENT_ID = " ";
     assert.equal(readConfig().computerDeploymentId, undefined);
     delete process.env.COMPUTER_DEPLOYMENT_ID;
@@ -152,5 +156,27 @@ test("computer provider defaults to Docker and e2b-desktop requires a server-sid
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
     }
+  }
+});
+
+test("readConfig rejects a missing or blank CPK_INTELLIGENCE_API_KEY", async () => {
+  const { readConfig, intelligenceKeyRequiredMessage } = await import(
+    "../apps/server/src/config.ts"
+  );
+  const previous = process.env.CPK_INTELLIGENCE_API_KEY;
+  try {
+    delete process.env.CPK_INTELLIGENCE_API_KEY;
+    assert.throws(() => readConfig(), {
+      name: "Error",
+      message: intelligenceKeyRequiredMessage,
+    });
+    process.env.CPK_INTELLIGENCE_API_KEY = "   ";
+    assert.throws(() => readConfig(), {
+      name: "Error",
+      message: intelligenceKeyRequiredMessage,
+    });
+  } finally {
+    if (previous === undefined) delete process.env.CPK_INTELLIGENCE_API_KEY;
+    else process.env.CPK_INTELLIGENCE_API_KEY = previous;
   }
 });
