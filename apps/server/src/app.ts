@@ -24,8 +24,8 @@ import { AgentService } from "./engine/service.ts";
 import { AppError } from "./errors.ts";
 import { Files } from "./files.ts";
 import { GoogleAuth } from "./google-auth.ts";
-import { rateLimit } from "./rate-limit.ts";
 import { isObscuraAvailable, obscuraFetch, obscuraFetchSchema } from "./obscura.ts";
+import { rateLimit } from "./rate-limit.ts";
 import { WorkspaceService } from "./workspace.ts";
 
 export async function createApp(

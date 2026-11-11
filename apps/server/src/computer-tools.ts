@@ -86,9 +86,9 @@ export function computerTools(
     tool(
       "run_computer_command",
       computer.provider === "local"
-        ? (isWin
-            ? "Run native Windows PowerShell commands inside the local workspace and return its persisted output and exit receipt"
-            : "Run shell commands inside the local workspace and return its persisted output and exit receipt")
+        ? isWin
+          ? "Run native Windows PowerShell commands inside the local workspace and return its persisted output and exit receipt"
+          : "Run shell commands inside the local workspace and return its persisted output and exit receipt"
         : "Run bash only inside the private computer and return its persisted output and exit receipt",
       computerCommandSchema.extend({ operationId: z.string().min(1).max(120) }),
       async ({ operationId, ...args }) =>

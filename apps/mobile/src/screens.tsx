@@ -1323,7 +1323,9 @@ export function ConnectionsScreen({ query = "" }: { query?: string }) {
       {selected && (
         <Sheet
           title={selected === "google" ? "Google connections" : "GangNiagaBot"}
-          subtitle={selected === "google" ? google?.account : "A computer for your agent (GangNiagaBot)"}
+          subtitle={
+            selected === "google" ? google?.account : "A computer for your agent (GangNiagaBot)"
+          }
           onClose={() => setSelected(undefined)}
         >
           {selected === "google" ? (

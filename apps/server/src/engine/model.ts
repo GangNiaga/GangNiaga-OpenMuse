@@ -6,10 +6,10 @@ import { z } from "zod";
 import type { AgentTask } from "../../../../packages/domain/src/agent.ts";
 import { emailDraftSchema, eventDraftSchema } from "../../../../packages/domain/src/index.ts";
 import { computerInstructions, computerTools } from "../computer-tools.ts";
+import { obscuraTools } from "../obscura.ts";
 import { searchDescription, searchInputSchema, searchInstructions } from "../search.ts";
 import type { AgentService } from "./service.ts";
 import { tanstackAgent } from "./tanstack-agent.ts";
-import { obscuraTools } from "../obscura.ts";
 import type { TaskContext } from "./worker.ts";
 
 export type TaskAnswer = { question?: string; answer: string };

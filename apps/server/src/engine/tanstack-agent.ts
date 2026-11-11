@@ -15,7 +15,12 @@ import {
 } from "@tanstack/ai";
 import { type AnthropicChatModel, anthropicText } from "@tanstack/ai-anthropic";
 import { type GeminiTextModel, geminiText } from "@tanstack/ai-gemini";
-import { type OpenAIChatModel, createOpenaiChatCompletions, openaiChatCompletions, openaiText } from "@tanstack/ai-openai";
+import {
+  createOpenaiChatCompletions,
+  type OpenAIChatModel,
+  openaiChatCompletions,
+  openaiText,
+} from "@tanstack/ai-openai";
 import { map, mergeMap, type Observable } from "rxjs";
 import { z } from "zod";
 import { MODEL_MAX_RETRIES } from "../config.ts";
@@ -68,7 +73,8 @@ export function adapter(spec: string) {
     }
     case "nvidia":
     case "nim": {
-      const apiKey = process.env.NVIDIA_NIM_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim() || "";
+      const apiKey =
+        process.env.NVIDIA_NIM_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim() || "";
       return createOpenaiChatCompletions(id as any, apiKey, {
         baseURL: process.env.NVIDIA_NIM_BASE_URL || "https://integrate.api.nvidia.com/v1",
         maxRetries: MODEL_MAX_RETRIES,
@@ -76,7 +82,8 @@ export function adapter(spec: string) {
       });
     }
     case "openrouter": {
-      const apiKey = process.env.OPENROUTER_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim() || "";
+      const apiKey =
+        process.env.OPENROUTER_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim() || "";
       return createOpenaiChatCompletions(id as any, apiKey, {
         baseURL: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
         maxRetries: MODEL_MAX_RETRIES,
@@ -103,7 +110,8 @@ export function isFailoverEligible(message: string, code?: string | number): boo
   const c = String(code ?? "").toLowerCase();
   // Client syntax errors or auth errors should fail fast
   if (c === "400" || m.includes("bad request") || m.includes("invalid parameter")) return false;
-  if (c === "401" || c === "403" || m.includes("unauthorized") || m.includes("forbidden")) return false;
+  if (c === "401" || c === "403" || m.includes("unauthorized") || m.includes("forbidden"))
+    return false;
 
   return (
     c === "429" ||

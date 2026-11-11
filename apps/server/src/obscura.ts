@@ -137,7 +137,9 @@ export const obscuraFetchSchema = z.object({
   stealth: z
     .boolean()
     .default(true)
-    .describe("Enable anti-detection stealth mode (spoofs fingerprint, bypasses Cloudflare/bot mitigations)"),
+    .describe(
+      "Enable anti-detection stealth mode (spoofs fingerprint, bypasses Cloudflare/bot mitigations)",
+    ),
   selector: z
     .string()
     .optional()

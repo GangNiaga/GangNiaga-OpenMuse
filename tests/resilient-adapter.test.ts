@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { chat, toolDefinition } from "@tanstack/ai";
 import { z } from "zod";
-import {
-  createResilientAdapter,
-  getModelSpecs,
-} from "../apps/server/src/engine/tanstack-agent.ts";
+import { createResilientAdapter, getModelSpecs } from "../apps/server/src/engine/tanstack-agent.ts";
 
 test("getModelSpecs parses comma-separated models and merges fallback env", () => {
   const prevFallback = process.env.FALLBACK_MODELS;

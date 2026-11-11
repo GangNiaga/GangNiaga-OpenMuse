@@ -17,10 +17,10 @@ import type { Config } from "../config.ts";
 import { createJevAdapter, type JevAdapter } from "../jev/adapter.ts";
 import { JevService } from "../jev/service.ts";
 import { presentChoicesTool } from "../jev/tools.ts";
+import { obscuraTools } from "../obscura.ts";
 import { searchDescription, searchInputSchema, searchInstructions } from "../search.ts";
 import type { AgentService } from "./service.ts";
 import { tanstackAgent } from "./tanstack-agent.ts";
-import { obscuraTools } from "../obscura.ts";
 
 function clipCalendarText(text: string, limit: number) {
   const clipped = text.slice(0, limit);

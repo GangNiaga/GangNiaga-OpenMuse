@@ -487,7 +487,7 @@ export class LocalComputer implements ComputerBackend {
           const target = resolvePath(virtualPath);
           const relativePath = virtualPath;
 
-          let resObj: any = { path: relativePath };
+          const resObj: any = { path: relativePath };
 
           if (operation === "mkdir") {
             await mkdir(target, { recursive: true });
