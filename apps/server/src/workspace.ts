@@ -13,7 +13,7 @@ import type {
 import { GoogleClient } from "../../../packages/integrations/src/google.ts";
 import { createSamplePdf } from "../../../packages/integrations/src/pdf.ts";
 import type { ActionService } from "./actions.ts";
-import { agentConfigured } from "./agent.ts";
+import { agentConfigured, hasLiveIntelligence } from "./agent.ts";
 import type { Config } from "./config.ts";
 import type { Store } from "./db.ts";
 import { AppError } from "./errors.ts";
@@ -355,16 +355,16 @@ export class WorkspaceService {
         },
         {
           id: "openbot",
-          name: "OpenBot",
-          status: "unconfigured",
-          capabilities: ["Integration adapter available"],
+          name: "GangNiagaBot",
+          status: this.config.openbotEnabled ? "connected" : "unconfigured",
+          capabilities: ["Computer execution backend", "Browser agent", "Channels"],
         },
       ],
       runtime: {
         provider: this.config.agentBackend === "sample" ? "sample" : "model",
         configured: agentConfigured(this.config),
-        openbotConfigured: false,
-        richThreads: true,
+        openbotConfigured: Boolean(this.config.openbotEnabled),
+        richThreads: hasLiveIntelligence(this.config),
       },
     };
   }

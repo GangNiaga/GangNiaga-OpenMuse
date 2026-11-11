@@ -1,7 +1,11 @@
+import { spawn } from "node:child_process";
+import { access, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { dirname, join, posix } from "node:path";
 import { z } from "zod";
 import {
   type ComputerState,
   computerIdentity,
+  computerOutput,
   type DockerResult,
   type DockerRunner,
 } from "./computer.ts";
@@ -368,6 +372,192 @@ export class DesktopComputerBackend implements ComputerBackend {
           },
         ),
       stop: () => this.stop(owner),
+    };
+  }
+}
+
+export class LocalComputer implements ComputerBackend {
+  readonly provider = "local";
+  readonly receipts = "computer-local-commands";
+  readonly network = "enabled";
+  private readonly workspaceDir: string;
+
+  constructor(private readonly config: Config) {
+    this.workspaceDir = join(config.dataDir, "workspace");
+  }
+
+  private resolvePath(virtualPath: string): string {
+    const normalized = posix.normalize(virtualPath);
+    if (normalized !== "/workspace" && !normalized.startsWith("/workspace/")) {
+      throw new AppError("Choose an absolute path inside /workspace", 422);
+    }
+    const relative = normalized === "/workspace" ? "." : normalized.slice("/workspace/".length);
+    return join(this.workspaceDir, ...relative.split("/"));
+  }
+
+  async state(owner: string): Promise<ComputerState> {
+    try {
+      await access(this.workspaceDir);
+      return "running";
+    } catch {
+      return "stopped";
+    }
+  }
+
+  async start(owner: string): Promise<void> {
+    await mkdir(this.workspaceDir, { recursive: true });
+  }
+
+  async stop(owner: string): Promise<void> {
+    // Local workspace persists across stops
+  }
+
+  async running(owner: string): Promise<ComputerSession> {
+    await this.start(owner);
+    const workspaceDir = this.workspaceDir;
+    const resolvePath = this.resolvePath.bind(this);
+
+    return {
+      exec: async (command: string, cwd: string, signal?: AbortSignal) => {
+        let workingDir = workspaceDir;
+        try {
+          workingDir = resolvePath(cwd);
+          await mkdir(workingDir, { recursive: true });
+        } catch {
+          workingDir = workspaceDir;
+        }
+
+        const output = computerOutput();
+        const { result } = output;
+
+        return new Promise<DockerResult>((resolve) => {
+          let settled = false;
+          const isWin = process.platform === "win32";
+          const shell = isWin ? "powershell.exe" : "/bin/bash";
+          const shellArgs = isWin
+            ? ["-NoProfile", "-NonInteractive", "-Command", command]
+            : ["--noprofile", "--norc", "-c", command];
+
+          const child = spawn(shell, shellArgs, {
+            cwd: workingDir,
+            env: { ...process.env, HOME: workspaceDir },
+            stdio: ["pipe", "pipe", "pipe"],
+          });
+
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            signal?.removeEventListener("abort", abort);
+            resolve(output.finish());
+          };
+
+          const abort = () => {
+            result.interrupted = true;
+            child.kill();
+            finish();
+          };
+
+          const timer = setTimeout(() => {
+            result.timedOut = true;
+            child.kill();
+            finish();
+          }, 35000);
+
+          child.stdout.on("data", output.stdout);
+          child.stderr.on("data", output.stderr);
+          child.on("error", (err) => {
+            output.stderr(`Command failed: ${err.message}`);
+            finish();
+          });
+          child.on("close", (code) => {
+            result.exitCode = code;
+            finish();
+          });
+
+          signal?.addEventListener("abort", abort, { once: true });
+          child.stdin.end();
+        });
+      },
+
+      file: async (input: string, _seconds: number, maxOutputBytes: number) => {
+        try {
+          const req = JSON.parse(input);
+          const { path: virtualPath, operation, text } = req;
+          const target = resolvePath(virtualPath);
+          const relativePath = virtualPath;
+
+          let resObj: any = { path: relativePath };
+
+          if (operation === "mkdir") {
+            await mkdir(target, { recursive: true });
+          } else if (operation === "write") {
+            await mkdir(dirname(target), { recursive: true });
+            await writeFile(target, text ?? "", "utf8");
+          } else if (operation === "read") {
+            const content = await readFile(target, "utf8");
+            resObj.text = content;
+          } else if (operation === "read_pdf") {
+            const buf = await readFile(target);
+            resObj.base64 = buf.toString("base64");
+          } else if (operation === "list") {
+            try {
+              const dirents = await readdir(target, { withFileTypes: true });
+              const entries = [];
+              for (const dirent of dirents) {
+                const fullItemPath = join(target, dirent.name);
+                let itemSize = 0;
+                try {
+                  const s = await stat(fullItemPath);
+                  itemSize = s.size;
+                } catch {}
+                entries.push({
+                  name: dirent.name,
+                  path:
+                    relativePath === "/workspace"
+                      ? `/workspace/${dirent.name}`
+                      : `${relativePath}/${dirent.name}`,
+                  type: dirent.isDirectory() ? "directory" : "file",
+                  size: itemSize,
+                });
+              }
+              entries.sort(
+                (a, b) =>
+                  (a.type !== "directory" ? 1 : 0) - (b.type !== "directory" ? 1 : 0) ||
+                  a.name.localeCompare(b.name),
+              );
+              resObj.entries = entries;
+            } catch (err: any) {
+              if (err.code === "ENOENT") {
+                await mkdir(target, { recursive: true });
+                resObj.entries = [];
+              } else {
+                throw err;
+              }
+            }
+          }
+
+          return {
+            stdout: JSON.stringify(resObj),
+            stderr: "",
+            exitCode: 0,
+            timedOut: false,
+            interrupted: false,
+            truncated: false,
+          };
+        } catch (err: any) {
+          return {
+            stdout: "",
+            stderr: err.message || String(err),
+            exitCode: 1,
+            timedOut: false,
+            interrupted: false,
+            truncated: false,
+          };
+        }
+      },
+
+      stop: async () => {},
     };
   }
 }

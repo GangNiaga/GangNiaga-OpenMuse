@@ -1,4 +1,5 @@
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { BrowserContext, Page } from "playwright";
 import {
@@ -174,17 +175,17 @@ export async function createBrowserManager(
       );
     const previous = sessions.get(id);
     const profileDir = join(directory(id), "profile");
-    const tempDirectory = join("/tmp", `openmuse-downloads-${id}`);
+    const tempDirectory = join(tmpdir(), `openmuse-downloads-${id}`);
     await mkdir(profileDir, { recursive: true, mode: 0o700 });
     await mkdir(tempDirectory, { recursive: true, mode: 0o700 });
     let context: BrowserContext;
     try {
       const { chromium } = await import("playwright");
       context = await chromium.launchPersistentContext(profileDir, {
-        // Chromium does not need the worker API credential in its environment.
+        // Chromium needs standard OS environment variables on Windows and Linux.
         env: {
-          HOME: process.env.HOME ?? "/tmp",
-          PATH: process.env.PATH ?? "/usr/bin:/bin",
+          ...process.env,
+          HOME: process.env.HOME ?? process.env.USERPROFILE ?? tmpdir(),
           LANG: "C.UTF-8",
         },
         headless: true,
@@ -201,7 +202,8 @@ export async function createBrowserManager(
           "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
         ],
       });
-    } catch {
+    } catch (err) {
+      console.error("[OpenMuse Worker] Chromium launch failed:", err);
       if (!previous) await rm(directory(id), { recursive: true, force: true });
       await rm(tempDirectory, { recursive: true, force: true });
       throw new WorkerError(

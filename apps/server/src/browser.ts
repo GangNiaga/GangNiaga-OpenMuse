@@ -7,6 +7,7 @@ import type { Config } from "./config.ts";
 import type { Store } from "./db.ts";
 import { AppError } from "./errors.ts";
 import type { Files } from "./files.ts";
+import { isObscuraAvailable, obscuraFetch } from "./obscura.ts";
 
 const sessionSchema = z.object({
   id: z.string(),
@@ -183,13 +184,29 @@ export class BrowserService {
     return this.serial(id, () => this.readOwned(owner, id));
   }
   async observe(owner: string, url: string, existingId?: string, signal?: AbortSignal) {
-    const id = existingId ?? (await this.create(owner, url, signal)).id;
-    return this.serial(id, async () => {
-      signal?.throwIfAborted();
-      if (existingId) await this.openOwned(owner, id, url, signal);
-      signal?.throwIfAborted();
-      return { sessionId: id, ...(await this.readOwned(owner, id, signal)) };
-    });
+    try {
+      const id = existingId ?? (await this.create(owner, url, signal)).id;
+      return await this.serial(id, async () => {
+        signal?.throwIfAborted();
+        if (existingId) await this.openOwned(owner, id, url, signal);
+        signal?.throwIfAborted();
+        return { sessionId: id, ...(await this.readOwned(owner, id, signal)) };
+      });
+    } catch (workerErr) {
+      if (await isObscuraAvailable()) {
+        try {
+          const obs = await obscuraFetch({ url, dump: "text", stealth: true, signal });
+          return {
+            sessionId: existingId ?? "obscura-fallback",
+            url,
+            title: "Webpage (via Obscura)",
+            text: obs.content.slice(0, 30_000),
+            truncated: obs.truncated || obs.content.length > 30_000,
+          };
+        } catch {}
+      }
+      throw workerErr;
+    }
   }
   async observeForThread(owner: string, threadId: string, url: string, signal?: AbortSignal) {
     signal?.throwIfAborted();
@@ -211,19 +228,35 @@ export class BrowserService {
       status: "idle",
       updatedAt: new Date().toISOString(),
     });
-    return this.serial(id, async () => {
-      signal?.throwIfAborted();
-      await this.openOwned(owner, id, url, signal);
-      signal?.throwIfAborted();
-      const page = await this.readOwned(owner, id, signal);
-      signal?.throwIfAborted();
-      return {
-        sessionId: id,
-        ...page,
-        text: page.text.slice(0, 30_000),
-        truncated: page.truncated || page.text.length > 30_000,
-      };
-    });
+    try {
+      return await this.serial(id, async () => {
+        signal?.throwIfAborted();
+        await this.openOwned(owner, id, url, signal);
+        signal?.throwIfAborted();
+        const page = await this.readOwned(owner, id, signal);
+        signal?.throwIfAborted();
+        return {
+          sessionId: id,
+          ...page,
+          text: page.text.slice(0, 30_000),
+          truncated: page.truncated || page.text.length > 30_000,
+        };
+      });
+    } catch (workerErr) {
+      if (await isObscuraAvailable()) {
+        try {
+          const obs = await obscuraFetch({ url, dump: "text", stealth: true, signal });
+          return {
+            sessionId: id,
+            url,
+            title: "Webpage (via Obscura)",
+            text: obs.content.slice(0, 30_000),
+            truncated: obs.truncated || obs.content.length > 30_000,
+          };
+        } catch {}
+      }
+      throw workerErr;
+    }
   }
   async close(owner: string, id: string) {
     return this.serial(id, async () => {

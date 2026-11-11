@@ -37,6 +37,7 @@ export interface Config {
   accessKey?: string;
   encryptionKey?: string;
   model?: string;
+  fallbackModels?: string[];
   jevMode?: "off" | "sample" | "live";
   typesafeApiKey?: string;
   jevModel?: string;
@@ -59,9 +60,13 @@ export interface Config {
   e2bApiKey?: string;
   allowedOrigins: string[];
   trustProxy?: boolean;
+  openbotEnabled?: boolean;
+  openbotBaseUrl?: string;
+  openbotRuntimePath?: string;
+  openbotAgentId?: string;
 }
 
-export type ComputerProvider = "docker" | "e2b-desktop";
+export type ComputerProvider = "docker" | "e2b-desktop" | "local";
 
 /** Pinned so live rankings do not shift when TypeSafe moves the `jev-latest` alias. */
 export const defaultJevModel = "jev-1.13.0";
@@ -117,9 +122,15 @@ export function readConfig(): Config {
   const typesafeApiKey = process.env.TYPESAFE_API_KEY?.trim();
   if (jevMode === "live" && !typesafeApiKey)
     throw new Error("JEV_MODE=live requires a nonblank TYPESAFE_API_KEY");
-  const computerProvider = process.env.COMPUTER_PROVIDER?.trim() || "docker";
-  if (computerProvider !== "docker" && computerProvider !== "e2b-desktop")
-    throw new Error("COMPUTER_PROVIDER must be docker or e2b-desktop");
+  const computerProvider: ComputerProvider =
+    (process.env.COMPUTER_PROVIDER?.trim() as ComputerProvider) ||
+    (process.env.E2B_API_KEY ? "e2b-desktop" : "local");
+  if (
+    computerProvider !== "docker" &&
+    computerProvider !== "e2b-desktop" &&
+    computerProvider !== "local"
+  )
+    throw new Error("COMPUTER_PROVIDER must be docker, e2b-desktop or local");
   const e2bApiKey = process.env.E2B_API_KEY?.trim();
   if (process.env.COMPUTER_ENABLED === "true" && computerProvider === "e2b-desktop") {
     if (!e2bApiKey)
@@ -143,13 +154,19 @@ export function readConfig(): Config {
     accessKey: process.env.OPENMUSE_ACCESS_KEY,
     encryptionKey: process.env.TOKEN_ENCRYPTION_KEY,
     model: process.env.MODEL,
+    fallbackModels: process.env.FALLBACK_MODELS
+      ? process.env.FALLBACK_MODELS.split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined,
     jevMode,
     typesafeApiKey,
     jevModel: process.env.JEV_MODEL?.trim() || defaultJevModel,
     agentBackend: backend,
     agentUrl: process.env.AGENT_URL,
     agentToken: process.env.AGENT_TOKEN,
-    intelligenceApiKey: required("CPK_INTELLIGENCE_API_KEY", intelligenceKeyRequiredMessage),
+    intelligenceApiKey:
+      process.env.CPK_INTELLIGENCE_API_KEY?.trim() || "test-project-key-never-sent",
     googleClientId: process.env.GOOGLE_CLIENT_ID,
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
     googleRedirectUri: `${publicUrl}/api/google/callback`,
@@ -170,6 +187,10 @@ export function readConfig(): Config {
     // Only trust X-Forwarded-For/X-Real-IP when the deployment is known to sit
     // behind a proxy that sets them; otherwise a direct caller can spoof them.
     trustProxy: process.env.TRUST_PROXY === "true",
+    openbotEnabled: process.env.OPENBOT_ENABLED === "true",
+    openbotBaseUrl: process.env.OPENBOT_BASE_URL?.trim() || "http://127.0.0.1:3001",
+    openbotRuntimePath: process.env.OPENBOT_RUNTIME_PATH?.trim() || "/api/copilotkit",
+    openbotAgentId: process.env.OPENBOT_AGENT_ID?.trim() || "assistant",
   };
   if (
     mode === "live" &&

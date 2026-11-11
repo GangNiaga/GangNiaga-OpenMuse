@@ -9,6 +9,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "openmuse": "powershell -ExecutionPolicy Bypass -File ./start-openmuse.ps1",
     "dev": "tsx watch apps/server/src/index.ts",
     "dev:demo": "tsx apps/server/src/demo/entry.ts",
     "dev:mobile": "pnpm --dir apps/mobile start",

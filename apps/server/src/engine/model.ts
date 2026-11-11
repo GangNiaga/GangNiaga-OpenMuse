@@ -9,6 +9,7 @@ import { computerInstructions, computerTools } from "../computer-tools.ts";
 import { searchDescription, searchInputSchema, searchInstructions } from "../search.ts";
 import type { AgentService } from "./service.ts";
 import { tanstackAgent } from "./tanstack-agent.ts";
+import { obscuraTools } from "../obscura.ts";
 import type { TaskContext } from "./worker.ts";
 
 export type TaskAnswer = { question?: string; answer: string };
@@ -225,6 +226,7 @@ export async function executeModelTask(
           ),
         ]
       : []),
+    ...obscuraTools({ signal: ctx.signal }),
     tool(
       "save_artifact",
       "Save a persistent plan, comparison or report",
@@ -334,6 +336,7 @@ export async function executeModelTask(
   ctx.signal.throwIfAborted();
   const agent = tanstackAgent({
     model: config.model,
+    fallbackModels: config.fallbackModels,
     maxSteps: 16,
     tools,
     shouldContinue: () => outcome === undefined,

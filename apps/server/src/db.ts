@@ -1,5 +1,6 @@
+import { existsSync, renameSync, unlinkSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import pg from "pg";
 import { backgroundFailure } from "./log.ts";
@@ -189,9 +190,40 @@ export async function createStore(
     const pool = createPool(options.databaseUrl);
     database = { query: async (sql, params) => pool.query(sql, params), close: () => pool.end() };
   } else {
-    if (options.dataDir) await mkdir(dirname(options.dataDir), { recursive: true, mode: 0o700 });
-    const embedded = new PGlite(options.dataDir);
-    await embedded.waitReady;
+    if (options.dataDir) {
+      await mkdir(dirname(options.dataDir), { recursive: true, mode: 0o700 });
+      const pidFile = join(options.dataDir, "postgres", "postmaster.pid");
+      if (existsSync(pidFile)) {
+        try {
+          unlinkSync(pidFile);
+          console.log("[OpenMuse DB] Removed stale postmaster.pid from previous run");
+        } catch {}
+      }
+    }
+    let embedded = new PGlite(options.dataDir);
+    try {
+      await embedded.waitReady;
+    } catch (err: unknown) {
+      if (
+        options.dataDir &&
+        (String(err).includes("PANIC") ||
+          String(err).includes("Aborted") ||
+          String(err).includes("checkpoint"))
+      ) {
+        console.warn(
+          "[OpenMuse DB] Corrupted database detected during waitReady. Auto-recovering clean DB...",
+        );
+        try {
+          await embedded.close();
+        } catch {}
+        const backupDir = `${options.dataDir}.corrupted.${Date.now()}`;
+        renameSync(options.dataDir, backupDir);
+        embedded = new PGlite(options.dataDir);
+        await embedded.waitReady;
+      } else {
+        throw err;
+      }
+    }
     database = {
       query: (sql, params) => embedded.query<Row>(sql, params),
       close: () => embedded.close(),

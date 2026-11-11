@@ -15,14 +15,14 @@ import {
 } from "@tanstack/ai";
 import { type AnthropicChatModel, anthropicText } from "@tanstack/ai-anthropic";
 import { type GeminiTextModel, geminiText } from "@tanstack/ai-gemini";
-import { type OpenAIChatModel, openaiChatCompletions, openaiText } from "@tanstack/ai-openai";
+import { type OpenAIChatModel, createOpenaiChatCompletions, openaiChatCompletions, openaiText } from "@tanstack/ai-openai";
 import { map, mergeMap, type Observable } from "rxjs";
 import { z } from "zod";
 import { MODEL_MAX_RETRIES } from "../config.ts";
 
 // Same "provider/model" strings, env vars and base URL formats as the AI SDK resolver in
 // @copilotkit/runtime. Each provider SDK retries transient failures up to MODEL_MAX_RETRIES times.
-function adapter(spec: string) {
+export function adapter(spec: string) {
   const [, provider = "", model = ""] = spec.trim().match(/^([^/:]*)[/:](.*)$/) ?? [];
   if (!provider || !model.trim())
     throw new Error(
@@ -48,9 +48,42 @@ function adapter(spec: string) {
         baseURL: process.env.ANTHROPIC_BASE_URL?.replace(/\/v1\/?$/, ""),
         maxRetries: MODEL_MAX_RETRIES,
       });
+    case "groq": {
+      const apiKey = process.env.GROQ_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim() || "";
+      return createOpenaiChatCompletions(id as any, apiKey, {
+        baseURL: process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1",
+        maxRetries: MODEL_MAX_RETRIES,
+        timeout: 45000,
+      });
+    }
+    case "kilo":
+    case "kilo-auto": {
+      const modelId = provider.toLowerCase() === "kilo-auto" ? `kilo-auto/${id}` : id;
+      const apiKey = process.env.KILO_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim() || "";
+      return createOpenaiChatCompletions(modelId as any, apiKey, {
+        baseURL: process.env.KILO_BASE_URL || "https://ai-gateway.kilo.ai/api/v1",
+        maxRetries: MODEL_MAX_RETRIES,
+        timeout: 45000,
+      });
+    }
+    case "nvidia":
+    case "nim": {
+      const apiKey = process.env.NVIDIA_NIM_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim() || "";
+      return createOpenaiChatCompletions(id as any, apiKey, {
+        baseURL: process.env.NVIDIA_NIM_BASE_URL || "https://integrate.api.nvidia.com/v1",
+        maxRetries: MODEL_MAX_RETRIES,
+        timeout: 45000,
+      });
+    }
+    case "openrouter": {
+      const apiKey = process.env.OPENROUTER_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim() || "";
+      return createOpenaiChatCompletions(id as any, apiKey, {
+        baseURL: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
+        maxRetries: MODEL_MAX_RETRIES,
+        timeout: 45000,
+      });
+    }
     case "google":
-    case "gemini":
-    case "google-gemini":
       // The AI SDK base URL ends in /v1beta; @google/genai adds the API version itself.
       return geminiText(id as GeminiTextModel, {
         httpOptions: {
@@ -64,6 +97,156 @@ function adapter(spec: string) {
   }
 }
 
+/** Checks if an error is eligible for automated model failover (e.g. rate limits, 404s, 5xx server errors). */
+export function isFailoverEligible(message: string, code?: string | number): boolean {
+  const m = message.toLowerCase();
+  const c = String(code ?? "").toLowerCase();
+  // Client syntax errors or auth errors should fail fast
+  if (c === "400" || m.includes("bad request") || m.includes("invalid parameter")) return false;
+  if (c === "401" || c === "403" || m.includes("unauthorized") || m.includes("forbidden")) return false;
+
+  return (
+    c === "429" ||
+    c === "404" ||
+    c === "410" ||
+    c === "402" ||
+    c.startsWith("5") ||
+    m.includes("rate limit") ||
+    m.includes("tokens per minute") ||
+    m.includes("itpm") ||
+    m.includes("tpm") ||
+    m.includes("not found") ||
+    m.includes("does not exist") ||
+    m.includes("not have access") ||
+    m.includes("overloaded") ||
+    m.includes("quota") ||
+    m.includes("capacity") ||
+    m.includes("econnreset") ||
+    m.includes("etimedout") ||
+    m.includes("timeout") ||
+    m.includes("timed out") ||
+    m.includes("abort") ||
+    m.includes("fetch failed") ||
+    m.includes("terminated") ||
+    m.includes("socket hang up")
+  );
+}
+
+/** Parses comma-separated model specs and merges with optional FALLBACK_MODELS environment variable. */
+export function getModelSpecs(spec?: string): string[] {
+  const primaryList = (spec ?? process.env.MODEL ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  // Fixture/test models and mock specs must not be augmented with live production fallback models
+  if (primaryList.some((s) => s.includes("fixture") || s.startsWith("mock"))) {
+    return primaryList;
+  }
+
+  const fallbackList = (process.env.FALLBACK_MODELS || process.env.FALLBACK_MODEL || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set([...primaryList, ...fallbackList]));
+}
+
+/** Wraps multiple TanStack AI adapters in an automated, transparent failover proxy. */
+export function createResilientAdapter(specs: string[]) {
+  const adapters = specs.flatMap((s) => {
+    try {
+      return [{ spec: s, adapter: adapter(s) }];
+    } catch (err) {
+      console.warn(`[OpenMuse] Could not initialize adapter for "${s}":`, (err as any)?.message);
+      return [];
+    }
+  });
+
+  if (adapters.length === 0) {
+    throw new Error("No model adapters could be initialized from: " + specs.join(", "));
+  }
+
+  if (adapters.length === 1) return adapters[0].adapter;
+
+  let activeIndex = 0;
+  const current = () => adapters[activeIndex].adapter;
+
+  return new Proxy(adapters[0].adapter, {
+    get(target, prop, receiver) {
+      if (prop === "chatStream") {
+        return async function* (options: any) {
+          while (activeIndex < adapters.length) {
+            const entry = adapters[activeIndex];
+            const adapterInstance = entry.adapter;
+            const callOptions = (adapterInstance as any).model
+              ? { ...options, model: (adapterInstance as any).model }
+              : options;
+            let hasEmittedContent = false;
+            let failed = false;
+            let failureMsg = "";
+            let failureCode: string | number = "";
+            const buffered: any[] = [];
+
+            try {
+              for await (const chunk of (adapterInstance as any).chatStream(callOptions)) {
+                if (chunk.type === "RUN_ERROR") {
+                  failureMsg = chunk.message || "Unknown error";
+                  failureCode = chunk.code || "";
+                  failed = true;
+                  break;
+                }
+                if (
+                  chunk.type === "TEXT_MESSAGE_CONTENT" ||
+                  chunk.type === "TEXT_MESSAGE_CHUNK" ||
+                  chunk.type === "TOOL_CALL_START"
+                ) {
+                  hasEmittedContent = true;
+                }
+                if (!hasEmittedContent) {
+                  buffered.push(chunk);
+                } else {
+                  while (buffered.length) yield buffered.shift();
+                  yield chunk;
+                }
+              }
+            } catch (err: any) {
+              failureMsg = err.message || String(err);
+              failureCode = err.status || err.code || "";
+              failed = true;
+            }
+
+            if (
+              failed &&
+              !hasEmittedContent &&
+              isFailoverEligible(failureMsg, failureCode) &&
+              activeIndex + 1 < adapters.length
+            ) {
+              const nextIndex = activeIndex + 1;
+              console.warn(
+                `[OpenMuse Failover] Model "${entry.spec}" failed (${failureMsg}). Auto-switching to fallback "${adapters[nextIndex].spec}"...`,
+              );
+              activeIndex = nextIndex;
+              continue;
+            }
+
+            while (buffered.length) yield buffered.shift();
+            return;
+          }
+        };
+      }
+      return Reflect.get(current(), prop, receiver);
+    },
+  });
+}
+
+export function resolveResilientAdapter(spec: string, fallbackModels?: string[]) {
+  const specs = fallbackModels?.length
+    ? Array.from(new Set([spec, ...fallbackModels]))
+    : getModelSpecs(spec);
+  return specs.length > 1 ? createResilientAdapter(specs) : adapter(specs[0] || spec);
+}
+
 /** With OPENAI_BASE_URL set, a gateway model ID most likely needs the openai/ prefix. */
 export function unknownProvider(
   provider: string,
@@ -74,7 +257,7 @@ export function unknownProvider(
     ? ` For a model on your OPENAI_BASE_URL gateway, use "openai/${spec.trim()}".`
     : "";
   return new Error(
-    `Unknown provider "${provider}" in "${spec}". Supported: openai, anthropic, google (gemini).${hint}`,
+    `Unknown provider "${provider}" in "${spec}". Supported: openai, anthropic, google (gemini), groq, kilo, nvidia (nim), openrouter.${hint}`,
   );
 }
 
@@ -110,9 +293,10 @@ const stateTools = [
   }),
 ];
 
-/** A BuiltInAgent in TanStack factory mode with the options of the classic AI SDK mode. */
+/** A BuiltInAgent in TanStack factory mode with automated multi-model failover. */
 export function tanstackAgent(options: {
   model: string;
+  fallbackModels?: string[];
   maxSteps: number;
   tools: ToolDefinition[];
   prompt: string;
@@ -121,13 +305,14 @@ export function tanstackAgent(options: {
   /** Said when the step limit, not the model, ends a run; otherwise the reply just stops. */
   stepLimitNote?: string;
 }) {
+  const resilientAdapter = resolveResilientAdapter(options.model, options.fallbackModels);
   const agent = new BuiltInAgent({
     type: "tanstack",
     factory: ({ input, abortController }) => {
       const converted = convertInputToTanStackAI(input);
       // Build the system prompt like the classic mode. It does not forward system messages.
       let system = options.prompt;
-      if (input.context.length) {
+      if (input.context?.length) {
         system += "\n## Context from the application\n";
         for (const ctx of input.context) system += `${ctx.description}:\n${ctx.value}\n`;
       }
@@ -138,7 +323,7 @@ export function tanstackAgent(options: {
       )
         system += `\n## Application State\nThis is state from the application that you can edit by calling AGUISendStateSnapshot or AGUISendStateDelta.\n\`\`\`json\n${JSON.stringify(input.state, null, 2)}\n\`\`\`\n`;
       return chat({
-        adapter: adapter(options.model),
+        adapter: resilientAdapter,
         messages: converted.messages,
         systemPrompts: system ? [system] : [],
         tools: [

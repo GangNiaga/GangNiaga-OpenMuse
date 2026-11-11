@@ -12,7 +12,7 @@ import {
   proposalSchema,
 } from "../../../packages/domain/src/index.ts";
 import { ActionService } from "./actions.ts";
-import { agentConfigured, makeRuntime } from "./agent.ts";
+import { agentConfigured, hasLiveIntelligence, makeRuntime } from "./agent.ts";
 import { createAuth } from "./auth.ts";
 import { BrowserService } from "./browser.ts";
 import { ComputerService, type DockerRunner, resolveComputerDeployment } from "./computer.ts";
@@ -25,6 +25,7 @@ import { AppError } from "./errors.ts";
 import { Files } from "./files.ts";
 import { GoogleAuth } from "./google-auth.ts";
 import { rateLimit } from "./rate-limit.ts";
+import { isObscuraAvailable, obscuraFetch, obscuraFetchSchema } from "./obscura.ts";
 import { WorkspaceService } from "./workspace.ts";
 
 export async function createApp(
@@ -96,12 +97,13 @@ export async function createApp(
       502,
     );
   });
-  app.get("/api/health", (c) =>
+  app.get("/api/health", async (c) =>
     c.json({
       ok: true,
       mode: config.mode,
       agentConfigured: agentConfigured(config),
       browserConfigured: Boolean(config.workerUrl && config.workerToken),
+      obscuraAvailable: await isObscuraAvailable(),
     }),
   );
   let loginWindow = 0,
@@ -224,11 +226,13 @@ export async function createApp(
     const main = await db.get<{ threadId: string }>(owner, "conversation-settings", "main");
     if (!main) throw new AppError("Main conversation could not be loaded", 503);
     try {
-      await intelligence.getOrCreateThread({
-        threadId: main.threadId,
-        userId: owner,
-        agentId: "default",
-      });
+      if (hasLiveIntelligence(config)) {
+        await intelligence.getOrCreateThread({
+          threadId: main.threadId,
+          userId: owner,
+          agentId: "default",
+        });
+      }
     } catch {
       throw new AppError(
         "Main conversation is unavailable. Check the Rich Threads connection and try again.",
@@ -337,6 +341,11 @@ export async function createApp(
   app.post("/api/browsers/:id/console", async (c) => {
     await browser.input(c.get("owner"), c.req.param("id"), await c.req.json());
     return c.json({ ok: true });
+  });
+  app.post("/api/obscura/fetch", async (c) => {
+    const body = obscuraFetchSchema.parse(await c.req.json());
+    const result = await obscuraFetch(body);
+    return c.json(result);
   });
   app.all("/api/copilotkit/*", async (c) => {
     if (!agentConfigured(config))

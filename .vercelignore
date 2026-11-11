@@ -1,0 +1,8 @@
+node_modules
+.git
+.turbo
+.expo
+tests
+*.log
+.env
+.env.*

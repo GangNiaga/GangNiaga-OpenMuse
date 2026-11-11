@@ -20,6 +20,7 @@ import { presentChoicesTool } from "../jev/tools.ts";
 import { searchDescription, searchInputSchema, searchInstructions } from "../search.ts";
 import type { AgentService } from "./service.ts";
 import { tanstackAgent } from "./tanstack-agent.ts";
+import { obscuraTools } from "../obscura.ts";
 
 function clipCalendarText(text: string, limit: number) {
   const clipped = text.slice(0, limit);
@@ -330,6 +331,7 @@ export class ConversationAgent extends AbstractAgent {
             }),
           ]
         : []),
+      ...obscuraTools({ signal: browserAbort.signal }),
       defineTool({
         name: "delegate_task",
         description:

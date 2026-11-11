@@ -1243,10 +1243,12 @@ export function ConnectionsScreen({ query = "" }: { query?: string }) {
     },
     {
       id: "openbot",
-      name: "OpenBot",
+      name: "GangNiagaBot",
       icon: Sparkles,
       color: "#6866A6",
-      connected: false,
+      connected:
+        w.connections.some((c) => c.id === "openbot" && c.status === "connected") ||
+        w.runtime.openbotConfigured,
       group: "openbot",
     },
   ].filter((row) => `${row.name} ${row.group}`.toLowerCase().includes(query.toLowerCase()));
@@ -1320,8 +1322,8 @@ export function ConnectionsScreen({ query = "" }: { query?: string }) {
       {!rows.length && <Text style={s.muted}>No matching connectors.</Text>}
       {selected && (
         <Sheet
-          title={selected === "google" ? "Google connections" : "OpenBot"}
-          subtitle={selected === "google" ? google?.account : "A computer for your agent"}
+          title={selected === "google" ? "Google connections" : "GangNiagaBot"}
+          subtitle={selected === "google" ? google?.account : "A computer for your agent (GangNiagaBot)"}
           onClose={() => setSelected(undefined)}
         >
           {selected === "google" ? (
@@ -1363,7 +1365,7 @@ export function ConnectionsScreen({ query = "" }: { query?: string }) {
               />
               <SettingsLine
                 label="Rich Threads"
-                value={w.runtime.richThreads ? "CopilotKit Intelligence" : "Not connected"}
+                value={w.runtime.richThreads ? "Autonomous Engine" : "Not connected"}
               />
               <Button
                 small
@@ -1376,13 +1378,22 @@ export function ConnectionsScreen({ query = "" }: { query?: string }) {
           ) : (
             <View style={{ gap: 14 }}>
               <Text style={s.text}>
-                The OpenBot adapter is available in this open-source project. A live OpenBot backend
-                has not been configured.
+                {w.runtime.openbotConfigured
+                  ? "GangNiagaBot computer backend is connected on http://127.0.0.1:3001."
+                  : "The GangNiagaBot adapter is available in this open-source project. A live GangNiagaBot backend has not been configured."}
               </Text>
               <Text style={s.muted}>
-                Your current computer uses OpenMuse’s persistent Chromium worker. OpenBot
-                integration will expand the execution backend while keeping this interface.
+                {w.runtime.openbotConfigured
+                  ? "Your agent can now execute tasks, browse, and run automation using GangNiagaBot's containerized backend."
+                  : "Your current computer uses OpenMuse’s persistent Chromium worker. GangNiagaBot integration will expand the execution backend while keeping this interface."}
               </Text>
+              {w.runtime.openbotConfigured && (
+                <View style={{ gap: 8, marginTop: 8 }}>
+                  <SettingsLine label="Backend URL" value="http://127.0.0.1:3001" />
+                  <SettingsLine label="Agent ID" value="assistant" />
+                  <SettingsLine label="Status" value="Live (GangNiagaBot Container)" />
+                </View>
+              )}
             </View>
           )}
         </Sheet>

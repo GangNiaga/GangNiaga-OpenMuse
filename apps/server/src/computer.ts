@@ -13,6 +13,7 @@ import {
   type ComputerBackend,
   DesktopComputerBackend,
   DockerComputer,
+  LocalComputer,
 } from "./computer-backend.ts";
 import {
   describeDesktopAction,
@@ -216,7 +217,9 @@ export class ComputerService {
   ) {
     this.backend = desktop
       ? new DesktopComputerBackend(config, desktop)
-      : new DockerComputer(config, docker);
+      : config.computerProvider === "local"
+        ? new LocalComputer(config)
+        : new DockerComputer(config, docker);
   }
   // Receipts are kept per provider, so Docker history never shows up on the desktop.
   private get receipts() {
@@ -237,7 +240,9 @@ export class ComputerService {
       throw new AppError(
         this.provider === "docker"
           ? "Computer is not configured. Enable COMPUTER_ENABLED and build the local computer image."
-          : "Computer is not configured. Enable COMPUTER_ENABLED and configure the desktop provider.",
+          : this.provider === "local"
+            ? "Computer is not configured. Enable COMPUTER_ENABLED in .env."
+            : "Computer is not configured. Enable COMPUTER_ENABLED and configure the desktop provider.",
         503,
       );
   }
@@ -346,7 +351,9 @@ export class ComputerService {
         message:
           this.provider === "e2b-desktop"
             ? "Enable the E2B desktop computer on the server to use its desktop, terminal and workspace files."
-            : "Enable the Docker computer on the server to use its terminal and workspace files.",
+            : this.provider === "local"
+              ? "Enable the local computer on the server to use its terminal and workspace files."
+              : "Enable the Docker computer on the server to use its terminal and workspace files.",
       };
     try {
       return { ...base, status: (await this.isRunning(owner)) ? "running" : "stopped" };
