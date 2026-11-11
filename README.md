@@ -1,256 +1,283 @@
-  <div align="center">
+<div align="center">
 
-# OpenMuse
+# 🌌 GangNiaga-OpenMuse
 
-**A personal agent with a browser, terminal, files, and work that keeps going. Compatible with any agent harness.**
+**Sovereign Personal & Enterprise AI Agent Control Plane**  
+*Pelan Kawalan Ejen AI Peribadi & Perusahaan Berdaulat Berprestasi Tinggi*
 
-Ask for an outcome. Follow the plan, review actions, and come back to the result.
-Built with CopilotKit React Native for iOS, Android, and web.
+[![CI Status](https://github.com/GangNiaga/GangNiaga-OpenMuse/actions/workflows/ci.yml/badge.svg)](https://github.com/GangNiaga/GangNiaga-OpenMuse/actions/workflows/ci.yml)
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-Production%20Live-black?style=flat&logo=vercel)](https://gangniaga-openmuse.vercel.app)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CopilotKit v2](https://img.shields.io/badge/CopilotKit-v2%20AG--UI-blueviolet)](https://copilotkit.ai)
+[![TanStack AI](https://img.shields.io/badge/TanStack-AI%20Engine-orange)](https://tanstack.com)
 
-[Quick start](#quick-start) · [Demo](#demo) · [Features](#features) · [Architecture](#architecture) · [Docs](docs/README.md) · [Contributing](CONTRIBUTING.md)
-
-[![CI](https://github.com/CopilotKit/OpenMuse/actions/workflows/ci.yml/badge.svg)](https://github.com/CopilotKit/OpenMuse/actions/workflows/ci.yml)
-[![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-
-<a href="https://trendshift.io/repositories/254992?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-254992" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/254992/daily?language=TypeScript" alt="CopilotKit%2Fopenmuse | Trendshift" width="250" height="55"/></a>
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/CopilotKit/OpenMuse)
-
-Clone this template and customize it however you want.
-
-**[Building on OpenMuse? Meet with the CopilotKit team →](https://www.copilotkit.ai/talk-to-an-engineer?ref=openmuse_hero)**
-
-https://github.com/user-attachments/assets/8014d185-346c-4954-8ff0-26c582c5093a
-
-https://github.com/user-attachments/assets/0cc87de0-c3c1-4f24-b7df-e7d04bb946fd
+[Gambaran Keseluruhan](#-gambaran-keseluruhan) · [Senibina & Port](#-senibina--topologi-port) · [Penghalaan Model AI](#-penghalaan-model-ai-berdaya-tahan-4-tier-failover) · [Struktur Monorepo](#-struktur-monorepo) · [Pemasangan](#-panduan-pemasangan--konfigurasi) · [CI/CD & Vercel](#-cicd--penerapan-berpagar-vercel)
 
 </div>
 
-> **Alpha, for self-hosting and building on.** Open-ended reasoning, live Google accounts, and CopilotKit Rich Threads require their own configuration. See [what is verified](docs/VERIFICATION.md) and the [roadmap](ROADMAP.md).
+---
 
-## Demo
+## 📖 Gambaran Keseluruhan
 
-On iPhone, ask OpenMuse to find interesting stories on Hacker News and summarize CopilotKit. On desktop, ask it to check the school-trip email, open the message, and research exhibits at Monterey Bay Aquarium. The agent shows email and browser results inline. **Take control** opens that same browser session when you need it.
+**GangNiaga-OpenMuse** ialah pelan kawalan (*control plane*) ejen autonomi peribadi dan perusahaan generasi baharu. Sistem ini direka khas untuk menyelaraskan tugasan berterusan (*durable long-running workflows*), penyemakan imbas web pintar (*stealth browser worker*), pengurusan fail dan PDF, serta pelaksanaan arahan terminal selamat dalam kontena terasing.
 
-The 38-second iPhone and 42-second desktop web demos show the current interface, framed in 16:9. The send arrow becomes a stop square inside the input pill while the agent replies, then switches back. Stopping keeps your draft intact. See the [recording notes](docs/DEMO.md) for the model setup and reproduction steps.
+Dibina dengan teras teknologi termaju:
+* **Antaramuka Pengguna (UI)**: Dibina menggunakan **Expo (React Native)** untuk sokongan serentak Web SPA, iOS, dan Android dengan integrasi *headless hooks* **CopilotKit v2** dan penstriman peristiwa protokol **AG-UI**.
+* **Pelayan Aplikasi (Server)**: Dikuasakan oleh **Hono** berprestasi tinggi di atas Node.js (LTS), memuatkan pengurusan keadaan berterusan menggunakan **PGlite** (enjin PostgreSQL terbenam berdaya simpan setempat).
+* **Penyemak Imbas Ejen (Browser Worker)**: Perkhidmatan terasing **Playwright & Chromium** dengan sokongan profil sesi kekal (*persistent profiles*), kawalan langsung (*Take Control*), dan enjin pemintasan **Obscura V8 Stealth Scraper**.
+* **Kotak Pasir Komputer (Computer Sandbox)**: Gandingan lancar bersama **GangNiagaBot** melalui Docker Engine API, kontena Podman (`libracoder/kiri` v0.2.0), atau persekitaran E2B Desktop.
 
-[Mobile MP4](https://github.com/user-attachments/assets/8014d185-346c-4954-8ff0-26c582c5093a) · [Web MP4](https://github.com/user-attachments/assets/0cc87de0-c3c1-4f24-b7df-e7d04bb946fd) · [Recording details and reproduction](docs/DEMO.md)
+---
 
-The [Jev aquarium-trip demo](docs/demos/jev-generative-ui.md) walks through a fictional school email, clarification choices, sourced exhibit cards, hands-on preference refinement, and a confirmed selection. [Watch the 83-second live Jev recording](assets/demos/2026-09-23/jev-live-web.mp4), where TypeSafe Jev makes the decisions and a scripted agent keeps the trip scenario repeatable. A [scripted-decision sample recording](assets/demos/2026-09-23/jev-web.mp4) is also available.
+## 🏗️ Senibina & Topologi Port
 
-## What it is
+Ekosistem GangNiaga-OpenMuse menghubungkan antaramuka hadapan, pelayan lejar masa nyata, pekerja automasi pelayar, dan enjin pengkomputeran dalam topologi yang kukuh dan selamat:
 
-OpenMuse is a personal-agent application with an agent computer, visible work, and rich results. It runs its own server, task worker, and browser worker. You can inspect and change the source under the MIT license.
+```mermaid
+flowchart LR
+    subgraph Klien ["Antaramuka Klien (Client Surfaces)"]
+        VercelProd["🌐 Vercel Production SPA<br/><code>gangniaga-openmuse.vercel.app</code>"]
+        ExpoLocal["💻 Expo Web Dashboard<br/><code>localhost:8081</code>"]
+        NativeMobile["📱 Mobile App (iOS / Android)<br/>React Native Expo"]
+    end
 
-The computer combines **persistent Chromium and an optional Linux workspace**. The agent can browse public pages, run commands in its own container, work with files, and move PDFs between the computer and the app. You can open its browser or terminal and continue the work. Graphical desktops and autonomous checkout remain future work.
+    subgraph PelayanTeras ["Pelayan API & Runtime (Port 8787)"]
+        HonoAPI["⚡ Hono Web Server<br/>CORS Whitelist & Auth"]
+        CopilotKitRT["🧠 CopilotKit Runtime v2<br/>AG-UI Protocol Engine"]
+        TanStackRouter["🔄 Resilient Model Router<br/>4-Tier Provider Failover"]
+        TaskEngine["📋 Durable Task Engine<br/>SQL Lease Coordination"]
+        PGliteDB[("💾 PGlite Embedded<br/>PostgreSQL Store")]
+    end
 
-## Features
+    subgraph AutomasiPekerja ["Pekerja Automasi & Kotak Pasir"]
+        Worker8790["🕵️ Playwright Browser Worker<br/>Port <code>8790</code> (Bearer Auth)"]
+        ObscuraScraper["🛡️ Obscura V8 Engine<br/>Stealth Extraction"]
+        PodmanBot["🤖 GangNiagaBot Sandbox<br/>Port <code>3001</code> (Podman / Kiri)"]
+        DockerComputer["📦 Linux Computer Container<br/>Isolated Nonroot Volume"]
+    end
 
-| Surface | What runs in this alpha |
-| --- | --- |
-| **Chat** | CopilotKit headless chat with streamed AG-UI events, mailbox search and reading, send/stop in one input pill, a visible follow-up queue, retained drafts, delegated tasks, and inline email, browser, PDF, plan, and finance cards. |
-| **Agent computer** | Persistent browser profiles and takeover console; optional isolated Linux terminal, saved command receipts, editable workspace files, and PDF transfer. |
-| **Activity** | Durable task plans, progress, input requests, pause/resume/cancel/retry, approvals, and saved receipts. SQL leases recover interrupted work. |
-| **Ideas** | Suggestions with source evidence; edit, accept, or dismiss. Sent replies and completed matching work are excluded. |
-| **Goals & Tracking** | Goals and milestones; recurring public-page checks for changes, text availability, or USD price thresholds, with deduplicated alerts and failure backoff. |
-| **Documents** | Email attachment → PDF → requested form values → filled copy → reviewed reply → receipt. Native/web PDF viewing, paging, zoom, supported fields, and sharing. |
-| **Finance** | Import transaction CSV to create a spending summary with categories, transactions, and a savings-goal action. |
-| **Gmail & Calendar** | Google OAuth adapters, complete mail threads, drafts/attachments, calendar discovery, and reviewed event creation/update/deletion. Live credentials required. |
-| **Personal context** | Editable name, tone, avatar, and memories. Background-update preferences and durable in-app notifications. |
-| **Rich Threads** | CopilotKit Intelligence persistence in every mode, with a stable main conversation, side chats, renaming, archiving, restoring, and replay. A server-only project key is required. |
+    VercelProd -->|HTTPS API Requests| HonoAPI
+    ExpoLocal -->|HTTP / WebSocket| HonoAPI
+    NativeMobile -->|AG-UI Events| HonoAPI
 
-The [feature inventory](docs/FEATURES.md) describes implemented capabilities and planned extensions. Health/bank/social connectors, device push, voice, generated executable tools, and automatic reservations/payments are on the [roadmap](ROADMAP.md).
+    HonoAPI --> CopilotKitRT
+    CopilotKitRT --> TanStackRouter
+    HonoAPI --> TaskEngine
+    TaskEngine <--> PGliteDB
 
-## Quick start
-
-**Requirements:** Node 24 LTS, pnpm 11.19.0, and a CopilotKit Intelligence project key. The local sample app needs no model, Google account, or Docker.
-
-```sh
-git clone https://github.com/CopilotKit/OpenMuse.git openmuse
-cd openmuse
-pnpm install --frozen-lockfile
-cp .env.example .env
-npx copilotkit@latest login
-npx copilotkit@latest project select
-# Set CPK_INTELLIGENCE_API_KEY in .env to the generated server-only project key.
-# Keep the CLI-generated CPK_TELEMETRY_ID too, including in deployed server environments.
-pnpm dev
+    HonoAPI -->|Authorization: Bearer Token| Worker8790
+    Worker8790 --> ObscuraScraper
+    HonoAPI -->|Internal REST Probes| PodmanBot
+    TaskEngine --> DockerComputer
 ```
 
-In another terminal:
+### Jadual Topologi Port & Titik Akhir (Endpoints)
 
-```sh
-pnpm dev:web
-```
+| Port / URL | Komponen / Servis | Protokol & Kawalan Keselamatan | Penerangan Fungsi |
+| :--- | :--- | :--- | :--- |
+| **`https://gangniaga-openmuse.vercel.app`** | Production Web Frontend | HTTPS (TLS 1.3 / Vercel Edge) | Antaramuka pengeluaran SPA dengan peraturan penulisan semula (*rewrite*) `/settings` ke `/index.html`. |
+| **Port `8081`** | Expo Web / Metro Dev | HTTP (`localhost:8081`) | Papan pemuka pembangunan web tempatan untuk pengujian pantas antaramuka. |
+| **Port `8787`** | Hono API & CopilotKit Runtime | HTTP / JSON (`127.0.0.1:8787`) | Titik akhir utama API, penstriman AG-UI, pengurusan fail PDF, semakan tindakan (*review ledger*), dan pemeriksaan kesihatan (`/api/health`). |
+| **Port `8790`** | Playwright Browser Worker | HTTP + Bearer Auth Token (`WORKER_TOKEN`) | Servis penyemak imbas Chromium peribadi untuk navigasi web awam, pengekstrakan data, tangkapan skrin, dan pengambilalihan kawalan sesi pengguna. |
+| **Port `3001`** | GangNiagaBot Computer Sandbox | HTTP (`127.0.0.1:3001`) | Kotak pasir ejen Podman / Docker Engine API (`libracoder/kiri` v0.2.0) yang mengendalikan automasi terminal dan alatan lanjutan. |
 
-Open [localhost:8081](http://localhost:8081). The API runs at [localhost:8787/api/health](http://localhost:8787/api/health).
+---
 
-### Try it
+## ⚡ Penghalaan Model AI Berdaya Tahan (4-Tier Failover)
 
-1. In Chat, send **“Complete the permission slip”**. Open the task, supply fictional form values, inspect the saved PDF, and review the prepared reply. This writes only to the local mailbox.
-2. In **Goals → Track**, create a built-in availability watch, then change the built-in test page to trigger an alert.
-3. In **Menu → Delegate task → Finance**, use **Try example transactions** to create an interactive spending tracker.
-4. Start the [browser worker](#browser-worker) and configure a model, then ask **“Check out Hacker News for cool stuff”** or **“Summarize copilotkit.ai”**. Follow the browser inline and use **Take control** to open its session. For a model-free version of this flow, follow the [AI Mock demo setup](docs/DEMO.md#run-the-agent-browser-demo).
-
-For iOS or Android, use `pnpm --dir apps/mobile ios` or `pnpm --dir apps/mobile android`. Xcode or Android tooling is required. The PDF reader needs an Expo development build; use [native setup](apps/mobile/README.md).
-
-## Deploy on Render
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/CopilotKit/OpenMuse)
-
-[render.yaml](render.yaml) deploys three services: the API, the web app, and a private browser. The API answers `/` with JSON, so the UI is its own static site.
-
-### First run
-
-1. Click **Deploy to Render**. Wait until `openmuse-api`, `openmuse-web`, and `openmuse-browser` are live.
-2. On `openmuse-api`, open **Environment** and copy `OPENMUSE_ACCESS_KEY`.
-3. Open the `openmuse-web` URL and sign in with that key.
-4. Send a message.
-
-The deploy form asks for three values you provide. Render generates the other two.
-
-| Variable | Set by | If it is missing |
-|---|---|---|
-| `CPK_INTELLIGENCE_API_KEY` | You. Run `npx copilotkit@latest login`, then `npx copilotkit@latest project select`. Keep it on the server. | Chat cannot open a thread. |
-| `CPK_TELEMETRY_ID` | You. Keep the identity generated by the same project selection. | Runtime usage cannot be attributed to the Intelligence signup account. |
-| `OPENAI_API_KEY` | You. Used by the default `openai/gpt-5`. Change `MODEL` and supply the matching provider key for Anthropic or Google. | The model call fails. |
-| `OPENMUSE_ACCESS_KEY` | Render | You cannot sign in. |
-| `TOKEN_ENCRYPTION_KEY` | Render | The API refuses to start in live mode. |
-
-Health check: `https://<openmuse-api>/api/health`.
-
-### Services
-
-| Service | Plan | What it runs |
-|---|---|---|
-| `openmuse-api` | Standard, with a 1 GB disk at `/var/data` | The Hono API and the in-process task worker. `DATA_DIR` is `/var/data/openmuse`. |
-| `openmuse-web` | Static site | The Expo web export. `EXPO_PUBLIC_API_URL` is baked in at build time. |
-| `openmuse-browser` | Private service, Standard, 1 GB disk at `/data` | Playwright and Chromium. The API calls it on the private network. |
-
-**Standard** is the smallest plan that stays up. At 512 MB the process runs out of memory before it binds a port, because PGlite loads an embedded Postgres build.
-
-**The disk** holds the database, PDFs, and the signing key. A redeploy without it wipes that data. Chat threads are stored by CopilotKit Intelligence, so a thread can still load after you sign back in even when the disk was never attached.
-
-**Live mode** is required. Render binds `0.0.0.0`, and sample mode rejects any host that is not loopback. The Blueprint sets `WORKSPACE_MODE=live`.
-
-**Browsing is included, and you can take it out.** `openmuse-browser` is a private service, so it has no public URL. The API reaches it at `http://openmuse-browser:8790` with a token Render generates. If the private hostname is not `openmuse-browser`, set `BROWSER_WORKER_URL` to `http://<that-host>:8790`. To deploy without it, delete the `openmuse-browser` service and the `BROWSER_WORKER_URL` and `WORKER_TOKEN` entries on `openmuse-api`. Chat, drafts, and tasks still run. Page reads, screenshots, and **Take control** do not.
-
-The Docker computer and Google mail or calendar need the setup in the sections below. This Blueprint does not start them.
-
-## Configure the agent and Google
-
-Copy the commented settings in [.env.example](.env.example) into your private `.env`:
-
-1. Set `AGENT_BACKEND=model`, `MODEL=provider/model-id`, and the matching provider key. CopilotKit supports the configured OpenAI, Anthropic or Google provider. Fictional data can still be used with a real model. Provider keys stay on the server.
-2. Create or select a CopilotKit Intelligence project with `npx copilotkit@latest login` and `npx copilotkit@latest project select`. Keep the generated `CPK_INTELLIGENCE_API_KEY` on the server.
-3. For personal mail/calendar, set `WORKSPACE_MODE=live`, the generated `CPK_INTELLIGENCE_API_KEY`, a random `OPENMUSE_ACCESS_KEY` of at least 24 characters, and `TOKEN_ENCRYPTION_KEY` containing 32 random bytes encoded as base64. Restart the API.
-4. Configure a Google OAuth web client with Gmail and Calendar APIs enabled. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`; register `${PUBLIC_API_URL}/api/google/callback` as its redirect URI. Configure consent/test-user access in your Google project.
-5. Open **Apps → Gmail** (or **Google Calendar**), connect read access, and grant write access when needed. Every send or calendar change still requires its own stored review. Changing/disconnecting the account invalidates pending connection-bound work.
-
-Google credentials are encrypted at rest. File URLs and browser consoles use short-lived signatures. This deployment uses one owner protected by a shared access key; it is not a multi-tenant authentication system. Use HTTPS and restricted network access for a remote host. Keep the default local-data mode on loopback.
-
-## Public web search
-
-Web search is enabled by default. Set `WEB_SEARCH_ENABLED=false` on the API and any separate task worker to disable it. With a configured model, delegated tasks and built-in model chat (`AGENT_BACKEND=model`) use [Parallel's free, keyless Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp) as their built-in search provider. Ask, for example, “Find the official CopilotKit React Native setup instructions and cite the sources.” Results include source URLs and excerpts; delegated tasks save them as evidence. Scripted sample chat and external AG-UI conversations keep their existing tools.
-
-Search sends model-generated queries and context, which may include information from your conversation or task, plus a random per-chat/task session identifier to Parallel. See [Parallel's privacy policy](https://parallel.ai/privacy-policy). Free access is rate limited; failures are reported without a paid fallback. Stopping chat or interrupting a task cancels its search.
-
-## Browser worker
-
-Set `BROWSER_WORKER_URL=http://127.0.0.1:8790` and a random `WORKER_TOKEN` of at least 32 characters in `.env`.
-
-```sh
-pnpm --dir apps/worker exec playwright install chromium
-pnpm dev:browser
-```
-
-Or use `docker compose --env-file .env -f infra/compose.yaml up --build -d`. The same token must reach the API and worker. Sessions have persistent Chromium profiles; the app can open a live screenshot console and import PDF downloads. Agent tools can read public pages and hand interactive work to the person. [Worker setup and boundaries](apps/worker/README.md).
-
-## Persistence and operation
-
-### Linux terminal and workspace
-
-Build the computer image, enable it on the API, then open **Computer → Terminal → Start computer**:
-
-```sh
-docker build -t openmuse-computer:local apps/computer
-COMPUTER_ENABLED=true pnpm dev
-```
-
-The API needs access to the Docker CLI and engine. Commands run in a nonroot container with no host-directory mounts or credentials. A named `/workspace` volume retains files when stopped. Terminal networking is disabled; public web access uses the browser worker. Commands have a 30-second limit and saved output/exit receipts. **Files** supports folders, text editing, and PDF transfer to/from Documents. This is a Linux container, not a full operating-system VM. [Setup, Colima option, and boundaries](docs/COMPUTER.md).
-
-### Application storage
-
-By default, embedded PGlite, documents and the signing key live in `.openmuse/`; browser profiles live in `.openmuse/browser-profiles/`. Keep that directory private and back it up. The API hosts the task worker. The host must remain running for background work.
-
-For a separate task worker, configure the same `DATABASE_URL`, secrets and shared `DATA_DIR` for both processes, then set `TASK_WORKER_ENABLED=false` on the API and run `pnpm dev:worker`. PGlite cannot be opened by separate processes. Production commands are `pnpm build:server`, `pnpm start` and `pnpm start:worker`. Run one API instance; task workers coordinate through SQL leases.
-
-No hidden retry occurs after an uncertain external write. Review its provider outcome before creating a replacement. Pausing/cancelling prevents subsequent task steps; an already approved in-flight provider request may finish.
-
-## CopilotKit Rich Threads
-
-Every deployment requires `CPK_INTELLIGENCE_API_KEY` on the API server for CopilotKit Intelligence conversation persistence and replay. Create or select a project with `npx copilotkit@latest login` and `npx copilotkit@latest project select`, set the generated server-only key, and restart the API. The native menu uses `useThreads`; rich tool results link back to saved tasks, documents, and browser sessions.
-
-Intelligence is a separate service and is not included in this repository's MIT license. No project key is shipped. [Configuration and validation boundaries](docs/RICH-THREADS.md).
-
-## Signup and runtime tracking
-
-The CopilotKit SDK sends runtime telemetry through the shared CopilotKit sink to PostHog with `accessibility_title: "OpenMuse"`. Telemetry defaults to full capture; explicit SDK opt-outs and sampling settings take precedence. Keep the CLI-generated `CPK_TELEMETRY_ID` alongside the server-only project key when deploying. Intelligence records completed account signups separately; OpenMuse runtime usage can be joined to those accounts after the sink resolves the identity. [Setup, opt-out and PostHog validation](docs/TELEMETRY.md).
-
-## Architecture
+Sistem menggunakan penyesuai pintar `createResilientAdapter` yang terletak dalam [`apps/server/src/engine/tanstack-agent.ts`](apps/server/src/engine/tanstack-agent.ts). Penyesuai ini melindungi ejen daripada gangguan had kadar API (*Rate Limit / ITPM caps*) melalui pertukaran pembekal automatik dan telus:
 
 ```mermaid
 flowchart TD
-  Client[Expo / React Native / Web] -->|AG-UI and authenticated API| API[Hono + CopilotKit runtime]
-  API --> Tasks[Durable task worker]
-  API --> Threads[CopilotKit Intelligence required in every mode]
-  API --> Store[(PGlite or PostgreSQL)]
-  Tasks --> Store
-  Tasks --> Review[Stored action review]
-  Review --> Google[Gmail / Calendar adapters]
-  Tasks --> Browser[Chromium worker + persistent profiles]
-  API --> Browser
-  API --> Computer[Optional Docker Linux computer]
-  Tasks --> Computer
-  Computer --> Volume[(Persistent workspace volume)]
-  Tasks --> Files[PDF files + structured artifacts]
-  API -. future adapter .-> OpenBot[OpenBot]
+    Req([Permintaan Sembang / Tindakan Ejen]) --> Tier1
+
+    subgraph Tier1 ["Tier 1: Kilo AI Auto-Gateway"]
+        T1_Run["kilo/kilo-auto/free"]
+        T1_Run -->|Berjaya| Out([Selesai / Strim Jawapan])
+        T1_Run -->|Ralat 429 / Had ITPM / 5xx| Tier2
+    end
+
+    subgraph Tier2 ["Tier 2: NVIDIA NIM Direct"]
+        T2_Run["nvidia/meta/llama-3.3-70b-instruct"]
+        T2_Run -->|Berjaya| Out
+        T2_Run -->|Ralat 429 / Kuota Habis / 5xx| Tier3
+    end
+
+    subgraph Tier3 ["Tier 3: Groq LPU Inference"]
+        T3_Run["groq/qwen/qwen3.8-27b"]
+        T3_Run -->|Berjaya| Out
+        T3_Run -->|Ralat 429 / Gangguan Rangkaian| Tier4
+    end
+
+    subgraph Tier4 ["Tier 4: OpenRouter Free Pool"]
+        T4_Run["openrouter/free"]
+        T4_Run -->|Berjaya| Out
+        T4_Run -->|Gagal Keseluruhan| Err([Lapor Ralat Terminal])
+    end
 ```
 
-| Directory | Purpose |
-| --- | --- |
-| `apps/mobile` | Shared iOS, Android, and web UI with CopilotKit headless hooks. |
-| `apps/server` | API, CopilotKit runtime, identity boundary, task engine, reviews, files, and persistence. |
-| `apps/worker` | Token-protected Playwright browser service with persistent profiles. |
-| `apps/computer` | Nonroot Linux image, bounded filesystem helper, and real container verification. |
-| `packages/domain` | Shared types and request validation. |
-| `packages/integrations` | Google and browser protocol adapters. |
-| `packages/backends` | Optional OpenBot HTTP adapter and its identity boundary. |
-| `tests` | Workflow, runtime, persistence, provider-contract, and authorization tests. |
+### Mekanisme Penapisan Ralat (`isFailoverEligible`)
+* **Layak untuk Failover Otomatik**: Kod status HTTP `429` (Rate limit / ITPM exceeded), `404`, `410`, ralat pelayan `5xx`, beban lampau (*overloaded*), dan gangguan soket rangkaian (`ECONNRESET`, `ETIMEDOUT`, `fetch failed`).
+* **Gagal Pantas (Fail-Fast)**: Ralat sintaks atau pengesahan pengguna seperti `400 Bad Request`, `401 Unauthorized`, dan `403 Forbidden` tidak akan dicuba semula ke pembekal lain bagi mengelakkan pembaziran masa dan kitaran tidak sah.
+* **Pengasingan Lekapan Ujian**: Model ujian/mock (`openai/fixture`, `mock/*`) diasingkan sepenuhnya daripada rantaian pengeluaran untuk mengelakkan pencemaran log ujian unit.
 
-### OpenBot compatibility
+---
 
-OpenMuse's native client and personal-agent workflows are independent of OpenBot. The disabled OpenBot adapter is pinned and contract-tested against upstream interfaces. Live user/session bridging, routine mapping, and computer backend wiring remain future work. OpenBot's Intelligence runtime is not a raw AG-UI endpoint. [Integration contract](docs/OPENBOT-INTEGRATION.md).
+## 📁 Struktur Monorepo
 
-## Development
+Susun atur kod sumber berstruktur modular di bawah pengurusan pakej `pnpm`:
+
+| Direktori | Komponen / Tanggungjawab | Teknologi Teras |
+| :--- | :--- | :--- |
+| **`apps/server`** | Pelayan API utama Hono, pengurusan sesi CopilotKit v2, lejar tugas berterusan, pangkalan data PGlite, dan sempadan kawalan tindakan selamat. | Node.js, Hono, PGlite, RxJS, TanStack AI |
+| **`apps/mobile`** | Aplikasi lintas platform (Web SPA, iOS, Android) dengan sokongan komponen sembang CopilotKit, kad hasil generatif UI, dan pengurusan tema OLED. | Expo (React Native), TypeScript, Tailwind/NativeWind |
+| **`apps/worker`** | Pekerja penyemak imbas automasi berasaskan Playwright dengan pengesahan Bearer Token dan pengurusan profil pengguna kekal. | Playwright, Chromium headless, Node HTTP |
+| **`apps/computer`** | Spesifikasi bekas kotak pasir Linux nonroot, pengesahan fail, dan antaramuka Docker/Podman Engine API. | Dockerfile, Bash, TypeScript smoke tests |
+| **`packages/domain`** | Model domain bersama, skema pengesahan Zod, dan definisi jenis TypeScript kanonikal. | TypeScript, Zod |
+| **`packages/integrations`** | Penyesuai luaran selamat untuk integrasi Google OAuth (Gmail & Google Calendar) dan protokol penyemak imbas. | Google APIs Client, OAuth2 |
+| **`packages/backends`** | Penyesuai titik akhir HTTP untuk GangNiagaBot dan OpenBot dengan pengesahan sempadan identiti. | HTTP Client, Agent Adapters |
+| **`tests`** | Rangkaian ujian integrasi penuh, ujian keselamatan sempadan CORS, ujian lejar persistensi, dan ujian kontrak pembekal. | Node.js Test Runner, tsx |
+
+---
+
+## 🚀 Panduan Pemasangan & Konfigurasi
+
+### 1. Keperluan Prasyarat
+* **Node.js**: Versi `>= 22` (disyorkan Node.js 22 LTS).
+* **Pengurus Pakej**: `pnpm` versi `11.19.0` (atau terkini).
+* **Persekitaran Kontena (Pilihan)**: Docker Engine atau Podman jika mengaktifkan kotak pasir komputer lokal.
+
+### 2. Langkah Pemasangan
 
 ```sh
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build:server
-pnpm build:web
-pnpm build:ios
-pnpm build:android
-pnpm --dir apps/worker typecheck
-pnpm test:browser
-pnpm test:computer
+# 1. Klon repositori rasmi
+git clone https://github.com/GangNiaga/GangNiaga-OpenMuse.git
+cd GangNiaga-OpenMuse
+
+# 2. Pasang semua kebergantungan monorepo
+pnpm install --frozen-lockfile
+
+# 3. Salin templat konfigurasi persekitaran
+cp .env.example .env
 ```
 
-Platform build scripts export JavaScript/Hermes bundles; they do not produce signed app binaries. Browser checks use controlled HTTP fixtures; the local check requires installed Chromium, and the container check requires Docker and registry access to build its image. CI also exercises the browser and Linux computer containers. See [contribution guidance](CONTRIBUTING.md) and [verification results](docs/VERIFICATION.md).
+### 3. Konfigurasi Pembolehubah Persekitaran (`.env`)
 
-## Contributing and license
+Edit fail `.env` menggunakan tetapan selamat anda. **AMARAN: Jangan sesekali melakukan komit (*commit*) kunci rahsia sebenar ke dalam kawalan versi git!**
 
-Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), [ROADMAP.md](ROADMAP.md), and the [security policy](SECURITY.md).
+```ini
+# Mod Persekitaran & Pelayan
+WORKSPACE_MODE=sample
+PORT=8787
+HOST=127.0.0.1
+PUBLIC_API_URL=http://localhost:8787
 
-MIT licensed. Built by CopilotKit. Its original interface and fictional assets are included. Website, email, and document content supplies evidence, not permission to act.
+# Senarai Putih CORS (Wajib untuk akses Web Vercel & Papan Pemuka Lokal)
+ALLOWED_ORIGINS=http://localhost:8081,http://127.0.0.1:8081,https://gangniaga-openmuse.vercel.app
+
+# CopilotKit Intelligence Project Key (Diperlukan untuk penyimpanan dan kesinambungan sembang)
+# Dapatkan melalui: npx copilotkit@latest login && npx copilotkit@latest project select
+CPK_INTELLIGENCE_API_KEY=your_server_intelligence_key_here
+
+# Konfigurasi Pekerja Penyemak Imbas (apps/worker)
+BROWSER_WORKER_URL=http://127.0.0.1:8790
+WORKER_TOKEN=your_secure_random_worker_token_minimum_32_chars
+WORKER_HOST=127.0.0.1
+
+# Konfigurasi Kotak Pasir Komputer (docker | local | e2b-desktop)
+COMPUTER_ENABLED=false
+COMPUTER_PROVIDER=docker
+COMPUTER_IMAGE=openmuse-computer:local
+
+# Pembolehubah Klien Web (Digunakan semasa kompilasi Expo Web)
+EXPO_PUBLIC_API_URL=https://gangniaga-openmuse.vercel.app
+EXPO_PUBLIC_OPENBOT_URL=http://127.0.0.1:3001
+```
+
+### 4. Perintah Pembangunan Tempatan
+
+```sh
+# Melancarkan Pelayan Hono API (Port 8787)
+pnpm dev
+
+# Melancarkan Antaramuka Web Expo dalam terminal berasingan (Port 8081)
+pnpm dev:web
+
+# Melancarkan Pekerja Penyemak Imbas Playwright (Port 8790)
+pnpm --dir apps/worker exec playwright install chromium
+pnpm dev:browser
+
+# Menjalankan Ujian Unit & Integrasi Keseluruhan
+pnpm test
+
+# Menjalankan Pemeriksaan Kualiti Kod (Linting & Jenis)
+pnpm lint
+pnpm typecheck
+
+# Membina Bundle Web Pengeluaran
+pnpm --dir apps/mobile build:web
+```
+
+---
+
+## 🛡️ CI/CD & Penerapan Berpagar Vercel
+
+Sistem GangNiaga-OpenMuse menguatkuasakan kawalan kualiti tanpa kompromi melalui seni bina saluran paip berpagar (*gated deployment pipeline*):
+
+```mermaid
+flowchart TD
+    PushMain[📌 Git Push ke cawangan 'main'] --> CIWorkflow
+
+    subgraph CIWorkflow ["Aliran Kerja CI (.github/workflows/ci.yml)"]
+        J1["Tugasan 1: quality<br/>(lint, typecheck, tests, build:server)"]
+        J2["Tugasan 2: platform:web<br/>(expo export web)"]
+        J3["Tugasan 3: platform:ios<br/>(expo export ios bundle)"]
+        J4["Tugasan 4: platform:android<br/>(expo export android bundle)"]
+        J5["Tugasan 5: browser<br/>(Playwright lifecycle test)"]
+        J6["Tugasan 6: browser-container<br/>(Docker container verification)"]
+        J7["Tugasan 7: computer-container<br/>(Linux isolation verification)"]
+    end
+
+    J1 & J2 & J3 & J4 & J5 & J6 & J7 --> AllPass{Adakah SEMUA<br/>7 Tugasan LULUS?}
+
+    AllPass -->|TIDAK / Gagal| Abort[❌ Henti Serta-merta — Tiada Penerapan]
+    AllPass -->|YA / Lulus 100%| TriggerDeploy[🚀 Peristiwa workflow_run Berjaya]
+
+    subgraph VercelWorkflow ["Penerapan Vercel (.github/workflows/vercel-deploy.yml)"]
+        PullEnv["Tarik Konfigurasi Pengeluaran Vercel CLI"]
+        BuildSPA["Bina Web SPA (pnpm --dir apps/mobile build:web)"]
+        DeployEdge["Tolak Bundle ke Vercel Edge Global CDN"]
+    end
+
+    TriggerDeploy --> PullEnv --> BuildSPA --> DeployEdge
+```
+
+### Penghalaan Semula Vercel SPA (`vercel.json`)
+Bagi mengelakkan isu ralat `404 Not Found` semasa pengguna menyegarkan semula (*page refresh*) atau mengakses pautan dalaman secara terus seperti `/settings`, konfigurasi kanonikal [`vercel.json`](vercel.json) mengarahkan semua permintaan kembali ke fail indeks SPA:
+
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm --dir apps/mobile build:web",
+  "outputDirectory": "apps/mobile/dist/web",
+  "installCommand": "pnpm install",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+```
+
+Pengesahan berkala menunjukkan:
+* Status URL Akar (`https://gangniaga-openmuse.vercel.app/`): **HTTP `200 OK`**
+* Status URL Tetapan (`https://gangniaga-openmuse.vercel.app/settings`): **HTTP `200 OK`**
+
+---
+
+## 📜 Lesen & Penghargaan
+
+* **Lesen**: Dilesenkan di bawah terma [MIT License](LICENSE).
+* **Asal**: Diinspirasikan oleh projek sumber terbuka CopilotKit OpenMuse dan dibangunkan semula secara berdaulat untuk ekosistem GangNiaga.
