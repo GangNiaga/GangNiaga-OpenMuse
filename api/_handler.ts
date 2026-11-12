@@ -22,7 +22,10 @@ export async function getApp(): Promise<Hono<{ Variables: { owner: string } }>> 
     config.taskWorkerEnabled = false;
 
     const dataDir = process.env.DATA_DIR || "/tmp/openmuse";
-    const databaseUrl = process.env.DATABASE_URL || config.databaseUrl;
+    const databaseUrl =
+      process.env.DATABASE_URL ||
+      config.databaseUrl ||
+      "postgres://postgres.wmuxfyymcgapqcyznltp:gangniagabot2026@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require";
 
     const db = await createStore({
       dataDir: `${dataDir}/postgres`,
@@ -43,12 +46,32 @@ export default async function handler(
   req: Request | IncomingMessage,
   res?: ServerResponse,
 ): Promise<Response | undefined> {
-  const app = await getApp();
-  if (res && typeof res.writeHead === "function") {
-    getRequestListener(app.fetch)(req as IncomingMessage, res);
-    return;
+  try {
+    const app = await getApp();
+    if (res && typeof res.writeHead === "function") {
+      getRequestListener(app.fetch)(req as IncomingMessage, res);
+      return;
+    }
+    return app.fetch(req as Request);
+  } catch (err: unknown) {
+    console.error("[Serverless Init Error]:", err);
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    const body = JSON.stringify({
+      error: "Serverless initialization failed",
+      message: errorMsg,
+      stack,
+    });
+    if (res && typeof res.writeHead === "function") {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(body);
+      return;
+    }
+    return new Response(body, {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
-  return app.fetch(req as Request);
 }
 
 export const GET = (req: Request) => handler(req);

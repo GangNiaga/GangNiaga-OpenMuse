@@ -177,7 +177,24 @@ export class Store {
 
 /** Idle clients can be disconnected by a database restart; without a listener pg's `error` event crashes the process. */
 export function createPool(connectionString: string) {
-  const pool = new pg.Pool({ connectionString, max: 5 });
+  const isSsl = connectionString.includes("sslmode=") || connectionString.includes("supabase.com");
+  let cleanedConnectionString = connectionString;
+  if (isSsl) {
+    try {
+      const parsed = new URL(connectionString);
+      parsed.searchParams.delete("sslmode");
+      cleanedConnectionString = parsed.toString();
+    } catch {
+      cleanedConnectionString = connectionString
+        .replace(/([?&])sslmode=[^&]+(&|$)/, (_, p1, p2) => (p1 === "?" && p2 ? "?" : ""))
+        .replace(/[?&]$/, "");
+    }
+  }
+  const pool = new pg.Pool({
+    connectionString: cleanedConnectionString,
+    max: 5,
+    ...(isSsl ? { ssl: { rejectUnauthorized: false } } : {}),
+  });
   pool.on("error", (error) => backgroundFailure("postgres pool", error));
   return pool;
 }
