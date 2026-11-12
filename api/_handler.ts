@@ -25,7 +25,7 @@ export async function getApp(): Promise<Hono<{ Variables: { owner: string } }>> 
     const databaseUrl =
       process.env.DATABASE_URL ||
       config.databaseUrl ||
-      "postgres://postgres.wmuxfyymcgapqcyznltp:gangniagabot2026@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require";
+      "postgres://postgres.wmuxfyymcgapqcyznltp:gangniagabot2026@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres";
 
     const db = await createStore({
       dataDir: `${dataDir}/postgres`,
@@ -49,7 +49,7 @@ export default async function handler(
   try {
     const app = await getApp();
     if (res && typeof res.writeHead === "function") {
-      getRequestListener(app.fetch)(req as IncomingMessage, res);
+      await getRequestListener(app.fetch)(req as IncomingMessage, res);
       return;
     }
     return app.fetch(req as Request);
@@ -63,7 +63,9 @@ export default async function handler(
       stack,
     });
     if (res && typeof res.writeHead === "function") {
-      res.writeHead(500, { "Content-Type": "application/json" });
+      if (!res.headersSent) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+      }
       res.end(body);
       return;
     }
