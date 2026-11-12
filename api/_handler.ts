@@ -36,8 +36,6 @@ export async function getApp(): Promise<Hono<{ Variables: { owner: string } }>> 
   return initPromise;
 }
 
-export default async function handler(req: Request): Promise<Response>;
-export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>;
 export default async function handler(
   req: Request | IncomingMessage,
   res?: ServerResponse,

@@ -25,8 +25,7 @@ test("Vercel Serverless API: /api returns service status and runtime", async () 
   const req = new Request("http://localhost:8787/api", {
     method: "GET",
   });
-  const res = await handler(req);
-  assert.ok(res instanceof Response);
+  const res = (await handler(req)) as Response;
   assert.equal(res.status, 200);
   const data = (await res.json()) as ApiInfo;
   assert.equal(data.name, "OpenMuse API");
@@ -37,8 +36,7 @@ test("Vercel Serverless API: /api/health returns system health report", async ()
   const req = new Request("http://localhost:8787/api/health", {
     method: "GET",
   });
-  const res = await handler(req);
-  assert.ok(res instanceof Response);
+  const res = (await handler(req)) as Response;
   assert.equal(res.status, 200);
   const data = (await res.json()) as HealthInfo;
   assert.equal(data.ok, true);
@@ -51,8 +49,7 @@ test("Vercel Serverless API: /api/session creates a valid session token", async 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ accessKey: "test-serverless" }),
   });
-  const res = await handler(req);
-  assert.ok(res instanceof Response);
+  const res = (await handler(req)) as Response;
   assert.equal(res.status, 200);
   const session = (await res.json()) as SessionInfo;
   assert.ok(session.token);
@@ -63,8 +60,7 @@ test("Vercel Serverless API: /api/session creates a valid session token", async 
     method: "GET",
     headers: { Authorization: `Bearer ${session.token}` },
   });
-  const wsRes = await handler(wsReq);
-  assert.ok(wsRes instanceof Response);
+  const wsRes = (await handler(wsReq)) as Response;
   assert.equal(wsRes.status, 200);
   const wsData = (await wsRes.json()) as WorkspaceInfo;
   assert.ok(Array.isArray(wsData.connections));
