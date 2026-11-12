@@ -98,7 +98,7 @@ export function adapter(spec: string) {
           // @google/genai counts the first call in `attempts`.
           retryOptions: { attempts: MODEL_MAX_RETRIES + 1 },
         },
-      });
+      } as any);
     default:
       throw unknownProvider(provider, spec);
   }
@@ -331,7 +331,7 @@ export function tanstackAgent(options: {
       )
         system += `\n## Application State\nThis is state from the application that you can edit by calling AGUISendStateSnapshot or AGUISendStateDelta.\n\`\`\`json\n${JSON.stringify(input.state, null, 2)}\n\`\`\`\n`;
       return chat({
-        adapter: resilientAdapter,
+        adapter: resilientAdapter as any,
         messages: converted.messages,
         systemPrompts: system ? [system] : [],
         tools: [

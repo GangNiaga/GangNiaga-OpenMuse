@@ -44,7 +44,7 @@ export class ConversationAgent extends AbstractAgent {
     return this.runInternal(input, false);
   }
   private runInternal(input: RunAgentInput, choiceContinuation: boolean): Observable<BaseEvent> {
-    const latest = input.messages.filter((m) => m.role === "user").at(-1);
+    const latest = input.messages.filter((m: any) => m.role === "user").at(-1);
     const requestKey = `${input.threadId}:${latest?.id ?? input.runId}`;
     const jevMode = this.config.jevMode ?? "off";
     const jev =
@@ -63,7 +63,7 @@ export class ConversationAgent extends AbstractAgent {
             if (!action) throw new Error("The choice could not be read");
             const selection = await jev.select(this.owner, input.threadId, action);
             if (cancelled) return;
-            const messages = input.messages.map((message) =>
+            const messages = input.messages.map((message: any) =>
               message === latest ? { ...message, content: selection.continuation } : message,
             );
             subscription = this.runInternal({ ...input, messages }, true).subscribe(subscriber);
@@ -411,7 +411,7 @@ export class ConversationAgent extends AbstractAgent {
     return this.expireOnUserTurn(
       new Observable((subscriber) => {
         const subscription = agent
-          .run({ ...input, tools: input.tools.filter((t) => t.name === "open_workspace") })
+          .run({ ...input, tools: input.tools.filter((t: any) => t.name === "open_workspace") })
           .subscribe(subscriber);
         return () => {
           browserAbort.abort();
