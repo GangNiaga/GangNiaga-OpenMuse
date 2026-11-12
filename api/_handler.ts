@@ -36,10 +36,16 @@ export async function getApp(): Promise<Hono<{ Variables: { owner: string } }>> 
   return initPromise;
 }
 
-export default async function handler(req: Request | IncomingMessage, res?: ServerResponse) {
+export default async function handler(req: Request): Promise<Response>;
+export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>;
+export default async function handler(
+  req: Request | IncomingMessage,
+  res?: ServerResponse,
+): Promise<Response | undefined> {
   const app = await getApp();
   if (res && typeof res.writeHead === "function") {
-    return getRequestListener(app.fetch)(req as IncomingMessage, res);
+    getRequestListener(app.fetch)(req as IncomingMessage, res);
+    return;
   }
   return app.fetch(req as Request);
 }
