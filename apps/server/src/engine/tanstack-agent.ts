@@ -377,7 +377,9 @@ export function textOnlyToolResult(event: BaseEvent): BaseEvent {
     return event;
   }
   if (!isContentPartArray(parts)) return event;
-  const text = parts.flatMap((part) => (part.type === "text" ? [part.content] : []));
+  const text = (parts as any[]).flatMap((part: any) =>
+    part?.type === "text" ? [part.content || part.text || ""] : [],
+  );
   return { ...event, content: text.join("\n") } as BaseEvent;
 }
 
