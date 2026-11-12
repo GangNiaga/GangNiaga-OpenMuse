@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+
+process.env.CPK_INTELLIGENCE_API_KEY =
+  process.env.CPK_INTELLIGENCE_API_KEY || "test-project-key-never-sent";
+
 import handler from "../api/_handler.ts";
 
 interface ApiInfo {

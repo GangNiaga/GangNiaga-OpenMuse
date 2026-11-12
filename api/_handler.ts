@@ -15,6 +15,9 @@ export async function getApp(): Promise<Hono<{ Variables: { owner: string } }>> 
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
+    if (!process.env.CPK_INTELLIGENCE_API_KEY) {
+      process.env.CPK_INTELLIGENCE_API_KEY = "serverless-key-placeholder";
+    }
     const config = readConfig();
     config.taskWorkerEnabled = false;
 
