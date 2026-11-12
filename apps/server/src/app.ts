@@ -107,6 +107,14 @@ export async function createApp(
       502,
     );
   });
+  app.get("/api", (c) =>
+    c.json({
+      name: "OpenMuse API",
+      status: "online",
+      mode: config.mode,
+      health: "/api/health",
+    }),
+  );
   app.get("/api/health", async (c) =>
     c.json({
       ok: true,

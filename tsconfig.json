@@ -12,6 +12,6 @@
     "types": ["node"],
     "lib": ["ES2023", "DOM"]
   },
-  "include": ["apps/server/**/*.ts", "packages/**/*.ts", "tests/**/*.ts"],
+  "include": ["api/**/*.ts", "apps/server/**/*.ts", "packages/**/*.ts", "tests/**/*.ts"],
   "exclude": ["node_modules", "apps/mobile", "apps/worker"]
 }
