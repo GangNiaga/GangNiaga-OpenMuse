@@ -12,7 +12,7 @@ import type { Config } from "./config.ts";
 import { AppError } from "./errors.ts";
 
 // The SDK is imported lazily so Docker-only installs never load it at runtime.
-const sdk = () => import("@e2b/desktop");
+const sdk = () => import("@e2b/desktop") as Promise<any>;
 
 const idleMs = 15 * 60_000; // auto-pause after 15 idle minutes; each operation refreshes it
 // Opening the desktop keeps it awake longer: VNC traffic does not count as activity.
@@ -80,7 +80,7 @@ export interface DesktopDriver {
 }
 
 // `load` is the SDK module; tests pass a fake one.
-export function e2bDesktopDriver(config: Config, load = sdk): DesktopDriver {
+export function e2bDesktopDriver(config: Config, load: () => Promise<any> = sdk): DesktopDriver {
   const opts = () => ({ apiKey: config.e2bApiKey, requestTimeoutMs: controlMs });
   return {
     async list(metadata) {
@@ -89,7 +89,7 @@ export function e2bDesktopDriver(config: Config, load = sdk): DesktopDriver {
         ...opts(),
         query: { metadata, state: ["running", "paused"] },
       }).nextItems();
-      return items.map((item) => item.sandboxId);
+      return items.map((item: any) => item.sandboxId);
     },
     async info(sandboxId) {
       const { Sandbox } = await load();
@@ -125,7 +125,7 @@ export function e2bDesktopDriver(config: Config, load = sdk): DesktopDriver {
               timeoutMs: 45_000,
             })
           ).exitCode;
-        } catch (error) {
+        } catch (error: any) {
           if (error instanceof CommandExitError) return error.exitCode;
           throw error;
         }
@@ -651,7 +651,7 @@ export class E2BDesktopComputer {
         await handle.closeStdin();
       }
       result.exitCode = (await handle.wait()).exitCode;
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof CommandExitError) result.exitCode = error.exitCode;
       else if (error instanceof TimeoutError && error.message.includes("[deadline_exceeded]"))
         result.timedOut = true;
