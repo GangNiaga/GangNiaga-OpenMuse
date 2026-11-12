@@ -61,9 +61,11 @@ export interface Config {
   allowedOrigins: string[];
   trustProxy?: boolean;
   openbotEnabled?: boolean;
+  openbotUrl?: string;
   openbotBaseUrl?: string;
   openbotRuntimePath?: string;
   openbotAgentId?: string;
+  openbotTimeout?: number;
 }
 
 export type ComputerProvider = "docker" | "e2b-desktop" | "local";
@@ -193,9 +195,17 @@ export function readConfig(): Config {
     // behind a proxy that sets them; otherwise a direct caller can spoof them.
     trustProxy: process.env.TRUST_PROXY === "true",
     openbotEnabled: process.env.OPENBOT_ENABLED === "true",
-    openbotBaseUrl: process.env.OPENBOT_BASE_URL?.trim() || "http://127.0.0.1:3001",
+    openbotUrl:
+      process.env.OPENBOT_URL?.trim() ||
+      process.env.OPENBOT_BASE_URL?.trim() ||
+      "http://127.0.0.1:3001",
+    openbotBaseUrl:
+      process.env.OPENBOT_URL?.trim() ||
+      process.env.OPENBOT_BASE_URL?.trim() ||
+      "http://127.0.0.1:3001",
     openbotRuntimePath: process.env.OPENBOT_RUNTIME_PATH?.trim() || "/api/copilotkit",
     openbotAgentId: process.env.OPENBOT_AGENT_ID?.trim() || "assistant",
+    openbotTimeout: Number(process.env.OPENBOT_TIMEOUT_MS) || 2500,
   };
   if (
     mode === "live" &&

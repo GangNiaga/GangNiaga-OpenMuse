@@ -38,6 +38,13 @@ export class OpenBotError extends Error {
   }
 }
 
+/** Maps a timeout ms value to an AbortSignal, or returns the original signal. */
+export function withTimeoutSignal(signal?: AbortSignal, timeoutMs?: number): AbortSignal {
+  if (!timeoutMs) return signal ?? AbortSignal.timeout(30_000);
+  if (signal) return AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]);
+  return AbortSignal.timeout(timeoutMs);
+}
+
 const nonempty = z.string().min(1);
 const capabilitiesSchema = z.object({
   mode: z.literal("intelligence"),
@@ -97,7 +104,9 @@ export type OpenBotProbe =
   | ({ state: "authenticated"; userId: string } & z.infer<typeof capabilitiesSchema>);
 
 /**
- * Future integration seam; constructing it does not connect to OpenBot.
+ * OpenBot integration adapter wired into apps/server/src/openbot.ts
+ * (/api/openbot & /api/workspace live reachability + agent tools).
+ * Constructing it does not connect to OpenBot.
  * The caller must enforce OpenMuse proposals before dispatching external writes.
  * OpenBot's own policy/audit gateway remains authoritative for every request.
  */

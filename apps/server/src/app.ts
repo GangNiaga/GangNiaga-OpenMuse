@@ -25,6 +25,7 @@ import { AppError } from "./errors.ts";
 import { Files } from "./files.ts";
 import { GoogleAuth } from "./google-auth.ts";
 import { isObscuraAvailable, obscuraFetch, obscuraFetchSchema } from "./obscura.ts";
+import { OpenBotService, openbotRoutes } from "./openbot.ts";
 import { rateLimit } from "./rate-limit.ts";
 import { WorkspaceService } from "./workspace.ts";
 
@@ -48,7 +49,16 @@ export async function createApp(
   });
   const browser = new BrowserService(db, config, auth, files);
   const computer = new ComputerService(db, config, options.docker);
-  const agent = new AgentService(db, config, workspace, files, actions, browser, computer);
+  const openbot = new OpenBotService(config, Date.now, async (authHeader: string) => {
+    if (!authHeader?.startsWith("Bearer ")) return false;
+    try {
+      await auth.owner(authHeader);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  const agent = new AgentService(db, config, workspace, files, actions, browser, computer, openbot);
   const intelligence = new CopilotKitIntelligence({ apiKey: config.intelligenceApiKey });
   const runtime = makeRuntime(config, agent, auth, intelligence);
   const app = new Hono<{ Variables: { owner: string } }>();
@@ -104,6 +114,7 @@ export async function createApp(
       agentConfigured: agentConfigured(config),
       browserConfigured: Boolean(config.workerUrl && config.workerToken),
       obscuraAvailable: await isObscuraAvailable(),
+      openbotReachable: await openbot.reachable(),
     }),
   );
   let loginWindow = 0,
@@ -154,21 +165,27 @@ export async function createApp(
     return c.json({ ok: true });
   });
   app.get("/api/workspace", async (c) => {
-    const [snapshot, reachable] = await Promise.all([
+    const [snapshot, reachable, openbotReachable] = await Promise.all([
       workspace.snapshot(c.get("owner"), c.req.query("q")),
       browser.reachable(),
+      openbot.reachable(),
     ]);
     snapshot.browsers = snapshot.browsers.map((s) => browser.decorate(c.get("owner"), s));
-    // A configured worker that does not answer is offline, not ready.
-    snapshot.connections = snapshot.connections.map((connection) =>
-      connection.id === "browser" && connection.status === "connected" && !reachable
-        ? { ...connection, status: "unavailable" }
-        : connection,
-    );
+    // A configured worker or OpenBot backend that does not answer is offline, not ready.
+    snapshot.connections = snapshot.connections.map((connection) => {
+      if (connection.id === "browser" && connection.status === "connected" && !reachable) {
+        return { ...connection, status: "unavailable" };
+      }
+      if (connection.id === "openbot" && connection.status === "connected" && !openbotReachable) {
+        return { ...connection, status: "unavailable" };
+      }
+      return connection;
+    });
     return c.json(snapshot);
   });
   app.route("/api/agent", agentRoutes(agent));
   app.route("/api/computer", computerRoutes(computer, files));
+  app.route("/api/openbot", openbotRoutes(openbot));
   app.get("/api/calendars", async (c) => c.json(await workspace.calendars(c.get("owner"))));
   app.get("/api/calendar/events", async (c) => {
     const query = z
@@ -368,5 +385,5 @@ export async function createApp(
   app.get("/", (c) =>
     c.json({ name: "OpenMuse", app: "http://localhost:8081", health: "/api/health" }),
   );
-  return { app, auth, files, actions, workspace, agent, computer };
+  return { app, auth, files, actions, workspace, agent, computer, openbot };
 }

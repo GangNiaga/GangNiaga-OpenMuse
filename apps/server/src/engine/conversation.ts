@@ -18,6 +18,7 @@ import { createJevAdapter, type JevAdapter } from "../jev/adapter.ts";
 import { JevService } from "../jev/service.ts";
 import { presentChoicesTool } from "../jev/tools.ts";
 import { obscuraTools } from "../obscura.ts";
+import { openbotTools } from "../openbot.ts";
 import { searchDescription, searchInputSchema, searchInstructions } from "../search.ts";
 import type { AgentService } from "./service.ts";
 import { tanstackAgent } from "./tanstack-agent.ts";
@@ -158,6 +159,9 @@ export class ConversationAgent extends AbstractAgent {
           before: async () => browserAbort.signal.throwIfAborted(),
         },
       ),
+      ...(this.config.openbotEnabled && this.service.openbot
+        ? openbotTools(this.service.openbot)
+        : []),
       ...(jev
         ? [
             presentChoicesTool(
