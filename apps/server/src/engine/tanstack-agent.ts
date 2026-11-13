@@ -92,13 +92,16 @@ export function adapter(spec: string) {
     }
     case "google":
       // The AI SDK base URL ends in /v1beta; @google/genai adds the API version itself.
-      return geminiText(id as GeminiTextModel, {
-        httpOptions: {
-          baseUrl: process.env.GOOGLE_GENERATIVE_AI_BASE_URL?.replace(/\/v1beta\/?$/, ""),
-          // @google/genai counts the first call in `attempts`.
-          retryOptions: { attempts: MODEL_MAX_RETRIES + 1 },
-        },
-      } as any);
+      return geminiText(
+        id as GeminiTextModel,
+        {
+          httpOptions: {
+            baseUrl: process.env.GOOGLE_GENERATIVE_AI_BASE_URL?.replace(/\/v1beta\/?$/, ""),
+            // @google/genai counts the first call in `attempts`.
+            retryOptions: { attempts: MODEL_MAX_RETRIES + 1 },
+          },
+        } as any,
+      );
     default:
       throw unknownProvider(provider, spec);
   }
@@ -161,10 +164,13 @@ export function getModelSpecs(spec?: string): string[] {
 }
 
 /** Wraps multiple TanStack AI adapters in an automated, transparent failover proxy. */
-export function createResilientAdapter(specs: string[]) {
+export function createResilientAdapter(
+  specs: string[],
+  createAdapter: (spec: string) => any = adapter,
+) {
   const adapters = specs.flatMap((s) => {
     try {
-      return [{ spec: s, adapter: adapter(s) }];
+      return [{ spec: s, adapter: createAdapter(s) }];
     } catch (err) {
       console.warn(`[OpenMuse] Could not initialize adapter for "${s}":`, (err as any)?.message);
       return [];
@@ -177,13 +183,13 @@ export function createResilientAdapter(specs: string[]) {
 
   if (adapters.length === 1) return adapters[0].adapter;
 
-  let activeIndex = 0;
-  const current = () => adapters[activeIndex].adapter;
+  const current = () => adapters[0].adapter;
 
   return new Proxy(adapters[0].adapter, {
     get(target, prop, receiver) {
       if (prop === "chatStream") {
         return async function* (options: any) {
+          let activeIndex = 0;
           while (activeIndex < adapters.length) {
             const entry = adapters[activeIndex];
             const adapterInstance = entry.adapter;
@@ -230,15 +236,15 @@ export function createResilientAdapter(specs: string[]) {
               isFailoverEligible(failureMsg, failureCode) &&
               activeIndex + 1 < adapters.length
             ) {
-              const nextIndex = activeIndex + 1;
+              activeIndex++;
               console.warn(
-                `[OpenMuse Failover] Model "${entry.spec}" failed (${failureMsg}). Auto-switching to fallback "${adapters[nextIndex].spec}"...`,
+                `[OpenMuse Failover] Model "${entry.spec}" failed (${failureMsg}). Trying the next configured tier...`,
               );
-              activeIndex = nextIndex;
               continue;
             }
 
             while (buffered.length) yield buffered.shift();
+            if (failed) yield { type: "RUN_ERROR", message: failureMsg, code: failureCode };
             return;
           }
         };

@@ -6,7 +6,7 @@
 *Pelan Kawalan Ejen AI Peribadi & Perusahaan Berdaulat Berprestasi Tinggi*
 
 [![CI Status](https://github.com/GangNiaga/GangNiaga-OpenMuse/actions/workflows/ci.yml/badge.svg)](https://github.com/GangNiaga/GangNiaga-OpenMuse/actions/workflows/ci.yml)
-[![Vercel Deployment](https://img.shields.io/badge/Vercel-Production%20Live-black?style=flat&logo=vercel)](https://gangniaga-openmuse.vercel.app)
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-Deployment-black?style=flat&logo=vercel)](https://gangniaga-openmuse.vercel.app)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CopilotKit v2](https://img.shields.io/badge/CopilotKit-v2%20AG--UI-blueviolet)](https://copilotkit.ai)
 [![TanStack AI](https://img.shields.io/badge/TanStack-AI%20Engine-orange)](https://tanstack.com)
@@ -17,6 +17,24 @@
 
 ---
 
+## Diagnostics and extraction
+
+Node.js 22.13+ is required, including by PDF.js. Serverless startup requires live mode, an explicit database URL and access/encryption keys. Computer support additionally needs an explicit deployment ID. Startup failures return a generic 503 and request ID. Configure credentials in deployment settings; credential rotation is a separate operational step.
+
+These routes require authentication and retain ownership checks:
+
+| Route | Behavior |
+| --- | --- |
+| GET /api/tools | Names, descriptions and JSON schemas from actual conversation tool definitions; providers and runtime permissions still apply. |
+| GET /api/health/details | Database probe, worker heartbeat and browser/computer/runtime configuration. Public /api/health remains liveness. |
+| POST /api/browsers/:id/tables | Bounded HTML table extraction; selector and format (json, csv, markdown). |
+| POST /api/browsers/:id/screenshot | PNG; optional clip inside the worker's 1280×800 viewport. |
+| POST /api/files/:id/tables | Owned PDF extraction in an isolated cancellable worker: 15 seconds, 10 MB input, 20 pages. |
+
+PDF columns are inferred from text coordinates. Scanned PDFs need OCR elsewhere; merged/wrapped cells require review. CSV neutralizes spreadsheet formula prefixes. Browser egress rejects private/mixed DNS answers and pins validated addresses through the proxy. Obscura uses the same proxy and rejects private-network overrides.
+
+Local computer mode checks workspace paths and symlinks and forwards a minimal environment. Native shell commands still have host-user privileges: choose Docker for isolation. Local tests do not establish production connectivity or deployment. See sibling PILOTKIT for offline and live stack gates.
+
 ## 📖 Gambaran Keseluruhan
 
 **GangNiaga-OpenMuse** ialah pelan kawalan (*control plane*) ejen autonomi peribadi dan perusahaan generasi baharu. Sistem ini direka khas untuk menyelaraskan tugasan berterusan (*durable long-running workflows*), penyemakan imbas web pintar (*stealth browser worker*), pengurusan fail dan PDF, serta pelaksanaan arahan terminal selamat dalam kontena terasing.
@@ -25,7 +43,7 @@ Dibina dengan teras teknologi termaju:
 * **Antaramuka Pengguna (UI)**: Dibina menggunakan **Expo (React Native)** untuk sokongan serentak Web SPA, iOS, dan Android dengan integrasi *headless hooks* **CopilotKit v2** dan penstriman peristiwa protokol **AG-UI**.
 * **Pelayan Aplikasi (Server)**: Dikuasakan oleh **Hono** berprestasi tinggi di atas Node.js (LTS), memuatkan pengurusan keadaan berterusan menggunakan **PGlite** (enjin PostgreSQL terbenam berdaya simpan setempat).
 * **Penyemak Imbas Ejen (Browser Worker)**: Perkhidmatan terasing **Playwright & Chromium** dengan sokongan profil sesi kekal (*persistent profiles*), kawalan langsung (*Take Control*), dan enjin pemintasan **Obscura V8 Stealth Scraper**.
-* **Kotak Pasir Komputer (Computer Sandbox)**: Gandingan lancar bersama **GangNiagaBot** melalui Docker Engine API, kontena Podman (`libracoder/kiri` v0.2.0), atau persekitaran E2B Desktop.
+* **Kotak Pasir Komputer (Computer Sandbox)**: Integrasi pilihan dengan **GangNiagaBot** melalui Docker Engine API, kontena Podman (`libracoder/kiri` v0.2.0), atau persekitaran E2B Desktop. Integrasi memerlukan konfigurasi eksplisit (`OPENBOT_REPO`, token callback); tiada sambungan automatik atau *shared login* di antara kedua-dua aplikasi.
 
 ---
 

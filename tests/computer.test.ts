@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { after, before, test } from "node:test";
 import { ComputerService, type DockerResult } from "../apps/server/src/computer.ts";
+import { LocalComputer, localComputerEnvironment } from "../apps/server/src/computer-backend.ts";
 import { createStore, type Store } from "../apps/server/src/db.ts";
 import { config, fixture, ok, sandbox } from "./helpers/computer.ts";
 
@@ -11,6 +15,35 @@ before(async () => {
 });
 after(async () => {
   await db.close();
+});
+
+test("local computer refuses production execution and passes only allowlisted environment", async () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousSecret = process.env.OPENAI_API_KEY;
+  const previousOpenBotUrl = process.env.OPENBOT_URL;
+  const dataDir = await mkdtemp(join(tmpdir(), "openmuse-local-computer-"));
+  try {
+    process.env.NODE_ENV = "production";
+    process.env.OPENAI_API_KEY = "must-not-enter-local-shell";
+    process.env.OPENBOT_URL = "http://127.0.0.1:3001";
+    const local = new LocalComputer({ ...config, dataDir });
+
+    await assert.rejects(local.start("owner"), /production/i);
+    await assert.rejects(local.running("owner"), /production/i);
+
+    const environment = localComputerEnvironment(dataDir);
+    assert.equal(environment.HOME, dataDir);
+    assert.equal(environment.OPENAI_API_KEY, undefined);
+    assert.equal(environment.OPENBOT_URL, undefined);
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+    if (previousSecret === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = previousSecret;
+    if (previousOpenBotUrl === undefined) delete process.env.OPENBOT_URL;
+    else process.env.OPENBOT_URL = previousOpenBotUrl;
+    await rm(dataDir, { recursive: true, force: true });
+  }
 });
 
 test("disabled computer reports setup without invoking Docker", async () => {

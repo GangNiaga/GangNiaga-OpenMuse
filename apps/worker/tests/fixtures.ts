@@ -37,6 +37,9 @@ export async function createBrowserFixture(options: { host?: string; port?: numb
     }
     let body: string;
     if (path === "/page") body = fixtureText;
+    else if (path === "/tables")
+      body =
+        "<table><tr><th>Item</th><th>Price</th></tr><tr><td>Coffee</td><td>5.00</td></tr></table><table id=spans><tr><th>Group</th><th>Item</th></tr><tr><td rowspan=0>Drinks</td><td>Coffee</td></tr><tr><td>Tea</td></tr></table>";
     else if (path === "/other") body = "Another fixture page.";
     else if (path === "/large?size=100000") body = "x".repeat(100_000);
     else if (path === "/large?size=100001") body = "x".repeat(100_001);

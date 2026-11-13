@@ -1,4 +1,33 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"]
+  "extends": [
+    "config:recommended",
+    "local>CopilotKit/renovate"
+  ],
+  "dependencyDashboard": {
+    "enabled": false
+  },
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "enabled": true
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true
+  },
+  "packageRules": [
+    {
+      "matchDatasources": [
+        "docker"
+      ],
+      "pinDigests": true
+    },
+    {
+      "groupName": "github-actions",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupSlug": "github-actions"
+    }
+  ]
 }

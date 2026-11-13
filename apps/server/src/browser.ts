@@ -62,6 +62,22 @@ export class BrowserService {
     this.health = { checkedAt: now, reachable };
     return reachable;
   }
+  async poolStatus() {
+    if (!this.config.workerUrl || !this.config.workerToken)
+      return { configured: false, reachable: null, activeSessions: null };
+    try {
+      const response = await this.request("/sessions", undefined, AbortSignal.timeout(2000));
+      const sessions: unknown = await response.json();
+      if (!Array.isArray(sessions)) throw new Error("Invalid browser pool response");
+      return {
+        configured: true,
+        reachable: true,
+        activeSessions: sessions.filter((session) => session?.status === "active").length,
+      };
+    } catch {
+      return { configured: true, reachable: false, activeSessions: null };
+    }
+  }
   private async serial<T>(id: string, operation: () => Promise<T>): Promise<T> {
     const next = (this.queues.get(id) ?? Promise.resolve()).catch(() => {}).then(operation);
     this.queues.set(id, next);
@@ -271,6 +287,18 @@ export class BrowserService {
   async preview(owner: string, id: string) {
     await this.get(owner, id);
     return this.request(`/sessions/${encodeURIComponent(id)}/screenshot`);
+  }
+  async extractTables(
+    owner: string,
+    id: string,
+    options: { selector?: string; format?: "json" | "csv" | "markdown" },
+  ) {
+    await this.get(owner, id);
+    return (await this.request(`/sessions/${encodeURIComponent(id)}/tables`, options)).json();
+  }
+  async screenshot(owner: string, id: string, clip: unknown) {
+    await this.get(owner, id);
+    return this.request(`/sessions/${encodeURIComponent(id)}/screenshot`, { clip });
   }
   async input(owner: string, id: string, value: unknown) {
     if (!value || typeof value !== "object" || Array.isArray(value))

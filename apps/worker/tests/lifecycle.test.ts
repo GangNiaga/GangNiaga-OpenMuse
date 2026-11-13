@@ -157,7 +157,9 @@ test("real worker API preserves fixture downloads and browser storage across pro
   async function stop() {
     if (!child || child.exitCode !== null || child.signalCode !== null) return;
     const exited = once(child, "exit");
-    child.kill("SIGTERM");
+    // Windows terminates a child immediately for kill(SIGTERM); IPC exercises graceful cleanup.
+    if (process.platform === "win32") child.send({ type: "shutdown" });
+    else child.kill("SIGTERM");
     const deadline = setTimeout(() => child?.kill("SIGKILL"), 35_000);
     deadline.unref();
     const [code] = await exited;

@@ -421,3 +421,35 @@ test("signed links authorize only the requests their page makes", async () => {
   ])
     assert.equal((await app.request(path, { method })).status, 401, `${method} ${path}`);
 });
+
+test("tool catalog is authenticated and uses the conversation tool schemas", async () => {
+  assert.equal((await app.request("/api/tools")).status, 401);
+  const response = await app.request("/api/tools", { headers: headers() });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.ok(result.tools.some((tool: { name: string }) => tool.name === "delegate_task"));
+  assert.ok(result.tools.every((tool: { parameters: unknown }) => tool.parameters));
+});
+test("detailed health is authenticated and reports real worker state", async () => {
+  assert.equal((await app.request("/api/health/details")).status, 401);
+  const response = await app.request("/api/health/details", { headers: headers() });
+  const result = await response.json();
+  assert.equal(result.checks.database, true);
+  assert.equal(typeof result.checks.tasks, "boolean");
+});
+
+test("extraction routes require a session and cannot reveal absent or unowned resources", async () => {
+  for (const path of [
+    `/api/files/${randomUUID()}/tables`,
+    `/api/browsers/${randomUUID()}/tables`,
+    `/api/browsers/${randomUUID()}/screenshot`,
+  ]) {
+    const request = { method: "POST", headers: { "content-type": "application/json" }, body: "{}" };
+    assert.equal((await app.request(path, request)).status, 401);
+    assert.equal(
+      (await app.request(path, { ...request, headers: { ...request.headers, ...headers() } }))
+        .status,
+      404,
+    );
+  }
+});

@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { access, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
-import { dirname, join, posix } from "node:path";
+import { dirname, join, posix, relative, sep } from "node:path";
 import { z } from "zod";
 import {
   type ComputerState,
@@ -12,6 +13,11 @@ import {
 import { desktopCommand, type E2BDesktopComputer } from "./computer-e2b-desktop.ts";
 import type { ComputerProvider, Config } from "./config.ts";
 import { AppError } from "./errors.ts";
+
+const LOCAL_COMPUTER_DISABLED_IN_PRODUCTION = () => {
+  if (process.env.NODE_ENV === "production")
+    throw new AppError("The local computer backend is disabled in production", 403);
+};
 
 export interface ComputerSession {
   exec(command: string, cwd: string, signal?: AbortSignal): Promise<DockerResult>;
@@ -376,13 +382,54 @@ export class DesktopComputerBackend implements ComputerBackend {
   }
 }
 
+const localEnvironmentAllowlist = [
+  "PATH",
+  "HOME",
+  "USER",
+  "SHELL",
+  "LANG",
+  "LC_ALL",
+  "TMPDIR",
+  "DISPLAY",
+  "TZ",
+  "SystemRoot",
+  "WINDIR",
+  "COMSPEC",
+  "PATHEXT",
+  "TEMP",
+  "TMP",
+  "USERPROFILE",
+  "HOMEDRIVE",
+  "HOMEPATH",
+  "APPDATA",
+  "LOCALAPPDATA",
+  "ProgramData",
+  "ProgramFiles",
+  "ProgramFiles(x86)",
+];
+
+export function localComputerEnvironment(workspaceDir: string): Record<string, string> {
+  const environment: Record<string, string> = {};
+  for (const key of localEnvironmentAllowlist) {
+    const value = process.env[key];
+    if (value !== undefined) environment[key] = value;
+  }
+  environment.HOME = workspaceDir;
+  return environment;
+}
+
+function assertLocalComputerAllowed(): void {
+  if (process.env.NODE_ENV === "production")
+    throw new AppError("The local computer backend is disabled in production", 403);
+}
+
 export class LocalComputer implements ComputerBackend {
   readonly provider = "local";
   readonly receipts = "computer-local-commands";
   readonly network = "enabled";
   private readonly workspaceDir: string;
 
-  constructor(private readonly config: Config) {
+  constructor(config: Config) {
     this.workspaceDir = join(config.dataDir, "workspace");
   }
 
@@ -391,8 +438,25 @@ export class LocalComputer implements ComputerBackend {
     if (normalized !== "/workspace" && !normalized.startsWith("/workspace/")) {
       throw new AppError("Choose an absolute path inside /workspace", 422);
     }
-    const relative = normalized === "/workspace" ? "." : normalized.slice("/workspace/".length);
-    return join(this.workspaceDir, ...relative.split("/"));
+    const suffix = normalized === "/workspace" ? "." : normalized.slice("/workspace/".length);
+    const target = join(this.workspaceDir, ...suffix.split("/"));
+    const root = realpathSync(this.workspaceDir);
+    // Check the nearest existing parent too, so new files under a junction cannot escape.
+    let existing = target;
+    while (true) {
+      try {
+        const delta = relative(root, realpathSync(existing));
+        if (delta === ".." || delta.startsWith(`..${sep}`) || /^(?:[A-Za-z]:|[\\/])/.test(delta))
+          throw new AppError("Path resolves outside the workspace directory", 422);
+        break;
+      } catch (error) {
+        if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+        const parent = dirname(existing);
+        if (parent === existing) throw error;
+        existing = parent;
+      }
+    }
+    return target;
   }
 
   async state(owner: string): Promise<ComputerState> {
@@ -405,6 +469,7 @@ export class LocalComputer implements ComputerBackend {
   }
 
   async start(owner: string): Promise<void> {
+    assertLocalComputerAllowed();
     await mkdir(this.workspaceDir, { recursive: true });
   }
 
@@ -419,13 +484,8 @@ export class LocalComputer implements ComputerBackend {
 
     return {
       exec: async (command: string, cwd: string, signal?: AbortSignal) => {
-        let workingDir = workspaceDir;
-        try {
-          workingDir = resolvePath(cwd);
-          await mkdir(workingDir, { recursive: true });
-        } catch {
-          workingDir = workspaceDir;
-        }
+        const workingDir = resolvePath(cwd);
+        await mkdir(workingDir, { recursive: true });
 
         const output = computerOutput();
         const { result } = output;
@@ -438,9 +498,10 @@ export class LocalComputer implements ComputerBackend {
             ? ["-NoProfile", "-NonInteractive", "-Command", command]
             : ["--noprofile", "--norc", "-c", command];
 
+          assertLocalComputerAllowed();
           const child = spawn(shell, shellArgs, {
             cwd: workingDir,
-            env: { ...process.env, HOME: workspaceDir },
+            env: localComputerEnvironment(workspaceDir),
             stdio: ["pipe", "pipe", "pipe"],
           });
 
@@ -481,6 +542,7 @@ export class LocalComputer implements ComputerBackend {
       },
 
       file: async (input: string, _seconds: number, maxOutputBytes: number) => {
+        LOCAL_COMPUTER_DISABLED_IN_PRODUCTION();
         try {
           const req = JSON.parse(input);
           const { path: virtualPath, operation, text } = req;

@@ -9,6 +9,7 @@ import {
   readDownloadFailures,
 } from "./downloads.ts";
 import { WorkerError } from "./errors.ts";
+import { screenshotClip, type TableFormat, tableResult } from "./extraction.ts";
 import { validatePublicUrl } from "./network.ts";
 import { startEgressProxy } from "./proxy.ts";
 
@@ -304,8 +305,61 @@ export async function createBrowserManager(
       serial("create", () => serial(id, () => createSession(id, url))),
     navigate: (id: string, url: string) => serial(id, () => navigate(id, url)),
     closeSession: (id: string) => serial(id, () => closeSession(id)),
-    screenshot: (id: string) =>
-      serial(id, () => active(id).page.screenshot({ type: "png", timeout: 10_000 })),
+    screenshot: (id: string, clip?: unknown) =>
+      serial(id, () =>
+        active(id).page.screenshot({ type: "png", timeout: 10_000, clip: screenshotClip(clip) }),
+      ),
+    tables: (id: string, selector = "table", format: TableFormat = "json") =>
+      serial(id, async () => {
+        if (
+          typeof selector !== "string" ||
+          !selector.trim() ||
+          selector.length > 500 ||
+          !["json", "csv", "markdown"].includes(format)
+        )
+          throw new WorkerError(
+            "INVALID_EXTRACTION",
+            "Choose a selector up to 500 characters and json, csv, or markdown.",
+          );
+        const { page } = active(id);
+        await validatePublicUrl(page.url());
+        const tables = await page.evaluate((selector) => {
+          const tables = Array.from(document.querySelectorAll(selector));
+          if (tables.length > 20) throw new Error("At most 20 tables may be extracted");
+          return tables.map((table) => {
+            if (!(table instanceof HTMLTableElement)) throw new Error("Selector must match tables");
+            if (table.rows.length > 1001)
+              throw new Error("At most 1000 data rows may be extracted");
+            const matrix: string[][] = [];
+            for (let r = 0; r < table.rows.length; r++) {
+              matrix[r] ??= [];
+              const row = matrix[r];
+              let column = 0;
+              for (const cell of Array.from(table.rows[r].cells)) {
+                while (row[column] !== undefined) column++;
+                const width = Math.max(1, cell.colSpan),
+                  height = cell.rowSpan === 0 ? table.rows.length - r : Math.max(1, cell.rowSpan);
+                if (column + width > 100 || r + height > 1001)
+                  throw new Error("Table span exceeds extraction limits");
+                for (let dy = 0; dy < height; dy++) {
+                  matrix[r + dy] ??= [];
+                  for (let dx = 0; dx < width; dx++)
+                    matrix[r + dy][column + dx] = cell.innerText.slice(0, 4096);
+                }
+                column += width;
+              }
+            }
+            return matrix;
+          });
+        }, selector);
+        if (JSON.stringify(tables).length > 500000)
+          throw new WorkerError("TABLE_TOO_LARGE", "Extracted tables exceed 500 KB.", 413);
+        return {
+          url: page.url(),
+          format,
+          tables: tables.map((matrix) => tableResult(matrix, format)),
+        };
+      }),
     read: (id: string) =>
       serial(id, async () => {
         const { page } = active(id);

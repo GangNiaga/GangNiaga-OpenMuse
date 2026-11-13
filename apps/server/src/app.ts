@@ -1,3 +1,5 @@
+import { ConversationAgent } from "./engine/conversation.ts";
+import { extractPdfTables } from "./pdf-tables.ts";
 import "./config.ts";
 import { randomUUID } from "node:crypto";
 import { MessageSchema } from "@ag-ui/core";
@@ -125,6 +127,70 @@ export async function createApp(
       openbotReachable: await openbot.reachable(),
     }),
   );
+
+  // Tool Catalog - lists available tools for agents
+  app.get("/api/tools", async (c) => {
+    const coreTools = [
+      { name: "memory_read", description: "Read from agent memory", category: "core", parameters: { type: "object", properties: { key: { type: "string" } }, required: ["key"] }, requiredPermissions: ["memory:read"] },
+      { name: "memory_write", description: "Write to agent memory", category: "core", parameters: { type: "object", properties: { key: { type: "string" }, value: {} }, required: ["key", "value"] }, requiredPermissions: ["memory:write"] },
+      { name: "host_shell", description: "Execute shell command on host", category: "host", parameters: { type: "object", properties: { command: { type: "string" }, cwd: { type: "string" } }, required: ["command"] }, requiredPermissions: ["host:shell"] },
+      { name: "host_read", description: "Read file from host", category: "host", parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] }, requiredPermissions: ["host:read"] },
+      { name: "host_write", description: "Write file to host", category: "host", parameters: { type: "object", properties: { path: { type: "string" }, content: { type: "string" } }, required: ["path", "content"] }, requiredPermissions: ["host:write"] },
+      { name: "browser_navigate", description: "Navigate browser to URL", category: "browser", parameters: { type: "object", properties: { url: { type: "string", format: "uri" } }, required: ["url"] }, requiredPermissions: ["browser:navigate"] },
+      { name: "browser_read", description: "Read page content", category: "browser", parameters: { type: "object", properties: { selector: { type: "string" } } }, requiredPermissions: ["browser:read"] },
+      { name: "browser_click", description: "Click element", category: "browser", parameters: { type: "object", properties: { selector: { type: "string" } }, required: ["selector"] }, requiredPermissions: ["browser:click"] },
+      { name: "browser_type", description: "Type text into element", category: "browser", parameters: { type: "object", properties: { selector: { type: "string" }, text: { type: "string" } }, required: ["selector", "text"] }, requiredPermissions: ["browser:type"] },
+      { name: "browser_screenshot", description: "Take screenshot", category: "browser", parameters: { type: "object", properties: { fullPage: { type: "boolean" }, clip: { type: "object" } } }, requiredPermissions: ["browser:screenshot"] },
+      { name: "browser_extract_table", description: "Extract HTML table to structured data", category: "browser", parameters: { type: "object", properties: { selector: { type: "string" }, format: { type: "string", enum: ["json", "csv", "markdown"] } }, required: ["selector"] }, requiredPermissions: ["browser:read"] },
+      { name: "file_read", description: "Read file from workspace", category: "file", parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] }, requiredPermissions: ["file:read"] },
+      { name: "file_write", description: "Write file to workspace", category: "file", parameters: { type: "object", properties: { path: { type: "string" }, content: { type: "string" } }, required: ["path", "content"] }, requiredPermissions: ["file:write"] },
+      { name: "pdf_extract_tables", description: "Extract tables from PDF", category: "file", parameters: { type: "object", properties: { fileId: { type: "string" }, format: { type: "string", enum: ["json", "csv", "markdown"] } }, required: ["fileId"] }, requiredPermissions: ["file:read"] },
+      { name: "network_fetch", description: "Fetch HTTP resource", category: "network", parameters: { type: "object", properties: { url: { type: "string", format: "uri" }, method: { type: "string", enum: ["GET", "POST", "PUT", "DELETE"] }, headers: { type: "object" }, body: { type: "string" } }, required: ["url"] }, requiredPermissions: ["network:fetch"] },
+      { name: "computer_exec", description: "Execute command in computer sandbox", category: "computer", parameters: { type: "object", properties: { command: { type: "string" }, cwd: { type: "string" } }, required: ["command"] }, requiredPermissions: ["computer:exec"] },
+      { name: "computer_file", description: "Read/write file in computer sandbox", category: "computer", parameters: { type: "object", properties: { path: { type: "string" }, content: { type: "string" } }, required: ["path"] }, requiredPermissions: ["computer:file"] },
+    ];
+    return c.json({ tools: coreTools });
+  });
+
+  // Enhanced Health Check
+  app.get("/api/health/detailed", async (c) => {
+    const checks: Record<string, { ok: boolean; detail?: string }> = {};
+
+    // Database check
+    try {
+      await db.get("system", "health", "probe");
+      checks.database = { ok: true };
+    } catch (e) {
+      checks.database = { ok: false, detail: String(e) };
+    }
+
+    // PGlite check
+    checks.pglite = { ok: true, detail: "embedded" };
+
+    // Worker check
+    try {
+      checks.worker = { ok: Boolean(config.workerUrl), detail: config.workerUrl ? "configured" : "not configured" };
+    } catch (e) {
+      checks.worker = { ok: false, detail: String(e) };
+    }
+
+    // Obscura check
+    checks.obscura = { ok: await isObscuraAvailable(), detail: "binary check" };
+
+    // OpenBot check
+    checks.openbot = { ok: await openbot.reachable(), detail: "reachable" };
+
+    const allOk = Object.values(checks).every(c => c.ok);
+    return c.json(
+      {
+        status: allOk ? "healthy" : "degraded",
+        version: "1.0.0",
+        timestamp: new Date().toISOString(),
+        checks,
+      },
+      allOk ? 200 : 503,
+    );
+  });
   let loginWindow = 0,
     loginAttempts = 0;
   app.post("/api/session", async (c) => {
@@ -167,6 +233,75 @@ export async function createApp(
         : await auth.owner(c.req.header("authorization"));
     c.set("owner", owner);
     await next();
+  });
+  app.post("/api/files/:id/tables", async (c) => {
+    const input = z
+      .object({ format: z.enum(["json", "csv", "markdown"]).default("json") })
+      .strict()
+      .parse(await c.req.json());
+    return c.json(
+      await extractPdfTables(
+        await files.bytes(c.get("owner"), c.req.param("id")),
+        input.format,
+        c.req.raw.signal,
+      ),
+    );
+  });
+  app.get("/api/tools", (c) => {
+    const conversation = new ConversationAgent(config, agent, c.get("owner"));
+    return c.json({
+      tools: conversation.tools({ threadId: "catalog", runId: "catalog" }).map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: z.toJSONSchema(tool.parameters as z.ZodType),
+        requiredPermissions: ["session"],
+        category: tool.name.includes("computer")
+          ? "compute"
+          : tool.name.includes("web")
+            ? "browser"
+            : "core",
+      })),
+    });
+  });
+  app.get("/api/health/details", async (c) => {
+    const database = await db.get("system", "health", "probe").then(
+      () => true,
+      () => false,
+    );
+    const browserPool = await browser.poolStatus();
+    const browserReady = browserPool.reachable;
+    const computerSnapshot = database ? await computer.snapshot(c.get("owner")) : null;
+    const openbotReady = config.openbotEnabled ? await openbot.reachable() : null;
+    const heartbeat = await db
+      .get<{ lastTickAt: string }>("system", "worker-status", "tasks")
+      .catch(() => null);
+    const tasks =
+      agent.worker.running ||
+      Boolean(heartbeat && Date.now() - Date.parse(heartbeat.lastTickAt) < 15000);
+    const checks = { database, browser: browserReady, openbot: openbotReady, tasks };
+    const status =
+      database &&
+      browserReady !== false &&
+      openbotReady !== false &&
+      tasks &&
+      computerSnapshot?.status !== "error"
+        ? "healthy"
+        : "degraded";
+    return c.json(
+      {
+        status,
+        checks,
+        computer: {
+          configured: Boolean(config.computerEnabled),
+          provider: config.computerProvider ?? "docker",
+          status: computerSnapshot?.status ?? "unknown",
+        },
+        browserPool,
+        timestamp: new Date().toISOString(),
+        version: "0.1.0",
+      },
+      database ? 200 : 503,
+    );
   });
   app.delete("/api/session", async (c) => {
     await auth.revoke(c.req.header("authorization"));
@@ -350,6 +485,34 @@ export async function createApp(
   app.post("/api/browsers/:id/import-downloads", async (c) =>
     c.json(await browser.imports(c.get("owner"), c.req.param("id"))),
   );
+  app.post("/api/browsers/:id/tables", async (c) => {
+    const options = z
+      .object({
+        selector: z.string().trim().min(1).max(500).optional(),
+        format: z.enum(["json", "csv", "markdown"]).default("json"),
+      })
+      .strict()
+      .parse(await c.req.json());
+    return c.json(await browser.extractTables(c.get("owner"), c.req.param("id"), options));
+  });
+  app.post("/api/browsers/:id/screenshot", async (c) => {
+    const options = z
+      .object({
+        clip: z
+          .object({
+            x: z.number().min(0),
+            y: z.number().min(0),
+            width: z.number().positive(),
+            height: z.number().positive(),
+          })
+          .optional(),
+      })
+      .strict()
+      .parse(await c.req.json());
+    const result = await browser.screenshot(c.get("owner"), c.req.param("id"), options.clip);
+    c.header("Content-Type", "image/png");
+    return c.body(await result.arrayBuffer());
+  });
   app.get("/api/browsers/:id/preview", async (c) => {
     const response = await browser.preview(c.get("owner"), c.req.param("id"));
     c.header("Content-Type", "image/png");

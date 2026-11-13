@@ -99,3 +99,25 @@ test("existing installs and explicit names keep their computer", async (t) => {
   assert.equal(named.computerDeploymentId, "fixture-deployment");
   assert.deepEqual(await readdir(directory), ["session-signing-key"]);
 });
+
+test("live document links remain valid across independent instance directories", async (t) => {
+  const firstDir = await mkdtemp(join(tmpdir(), "openmuse-live-key-a-"));
+  const secondDir = await mkdtemp(join(tmpdir(), "openmuse-live-key-b-"));
+  t.after(() =>
+    Promise.all([
+      rm(firstDir, { recursive: true, force: true }),
+      rm(secondDir, { recursive: true, force: true }),
+    ]),
+  );
+  const first = await createAuth({} as Store, {
+    ...config(firstDir),
+    mode: "live",
+    encryptionKey: "fixture-unique-live-key",
+  });
+  const second = await createAuth({} as Store, {
+    ...config(secondDir),
+    mode: "live",
+    encryptionKey: "fixture-unique-live-key",
+  });
+  assert.equal(second.verify(new URL(first.sign("owner", "/api/files/example/content"))), "owner");
+});

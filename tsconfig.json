@@ -9,9 +9,10 @@
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "esModuleInterop": true,
+    "downlevelIteration": true,
     "types": ["node"],
     "lib": ["ES2023", "DOM"]
   },
-  "include": ["api/**/*.ts", "apps/server/**/*.ts", "packages/**/*.ts", "tests/**/*.ts"],
-  "exclude": ["node_modules", "apps/mobile", "apps/worker"]
+  "include": ["api/**/*.ts", "apps/server/**/*.ts", "apps/worker/**/*.ts", "packages/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", "apps/mobile"]
 }

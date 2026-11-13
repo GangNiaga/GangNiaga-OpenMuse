@@ -39,3 +39,7 @@ for (const signal of ["SIGTERM", "SIGINT"] as const)
   process.on(signal, () => {
     void stop();
   });
+process.on("message", (message: unknown) => {
+  if (message && typeof message === "object" && "type" in message && message.type === "shutdown")
+    void stop();
+});

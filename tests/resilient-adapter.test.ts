@@ -15,7 +15,7 @@ test("getModelSpecs parses comma-separated models and merges fallback env", () =
   }
 });
 
-test("createResilientAdapter seamlessly fails over when primary model throws 429", async () => {
+test("createResilientAdapter resets to the first tier for each new agent selection", async () => {
   let primaryCalled = 0;
   let fallbackCalled = 0;
 
@@ -23,7 +23,7 @@ test("createResilientAdapter seamlessly fails over when primary model throws 429
     model: "primary-model",
     kind: "chat",
     name: "mock-primary",
-    async *chatStream(options: any) {
+    async *chatStream() {
       primaryCalled++;
       yield {
         type: "RUN_ERROR",
@@ -64,78 +64,24 @@ test("createResilientAdapter seamlessly fails over when primary model throws 429
     },
   };
 
-  const prevGroq = process.env.GROQ_API_KEY;
-  const prevKilo = process.env.KILO_API_KEY;
-  process.env.GROQ_API_KEY = prevGroq || "test-groq-key";
-  process.env.KILO_API_KEY = prevKilo || "test-kilo-key";
-  let resilient: ReturnType<typeof createResilientAdapter>;
-  try {
-    resilient = createResilientAdapter(["groq/qwen/qwen3.8-27b", "kilo/kilo-auto/free"]);
-  } finally {
-    if (prevGroq === undefined) delete process.env.GROQ_API_KEY;
-    else process.env.GROQ_API_KEY = prevGroq;
-    if (prevKilo === undefined) delete process.env.KILO_API_KEY;
-    else process.env.KILO_API_KEY = prevKilo;
-  }
-  // Replace internal adapters with mock adapters
-  (resilient as any).mockPrimary = mockPrimary;
+  const resilient = createResilientAdapter(["primary/model", "fallback/model"], (spec) =>
+    spec.startsWith("primary/") ? mockPrimary : mockFallback,
+  );
 
-  // Test custom resilient proxy logic
-  let activeIndex = 0;
-  const mockAdapters = [mockPrimary, mockFallback];
-  const testResilient = new Proxy(mockPrimary, {
-    get(target, prop, receiver) {
-      if (prop === "chatStream") {
-        return async function* (options: any) {
-          while (activeIndex < mockAdapters.length) {
-            const adapterInstance = mockAdapters[activeIndex];
-            let hasEmitted = false;
-            let failed = false;
-            const buffered: any[] = [];
-            try {
-              for await (const chunk of (adapterInstance as any).chatStream(options)) {
-                if (chunk.type === "RUN_ERROR") {
-                  failed = true;
-                  break;
-                }
-                if (chunk.type === "TEXT_MESSAGE_CONTENT" || chunk.type === "TOOL_CALL_START") {
-                  hasEmitted = true;
-                }
-                if (!hasEmitted) buffered.push(chunk);
-                else {
-                  while (buffered.length) yield buffered.shift();
-                  yield chunk;
-                }
-              }
-            } catch {
-              failed = true;
-            }
-            if (failed && !hasEmitted && activeIndex + 1 < mockAdapters.length) {
-              activeIndex++;
-              continue;
-            }
-            while (buffered.length) yield buffered.shift();
-            return;
-          }
-        };
-      }
-      return Reflect.get(mockAdapters[activeIndex], prop, receiver);
-    },
-  });
-
-  const stream = await chat({
-    adapter: testResilient as any,
-    messages: [{ role: "user", content: "Test failover" }],
-  });
-
-  let fullText = "";
-  for await (const chunk of stream) {
-    if (chunk.type === "TEXT_MESSAGE_CONTENT" && chunk.delta) {
-      fullText += chunk.delta;
+  async function run() {
+    const stream = await chat({
+      adapter: resilient as any,
+      messages: [{ role: "user", content: "Test failover" }],
+    });
+    let fullText = "";
+    for await (const chunk of stream) {
+      if (chunk.type === "TEXT_MESSAGE_CONTENT" && chunk.delta) fullText += chunk.delta;
     }
+    return fullText;
   }
 
-  assert.equal(primaryCalled, 1, "Primary model was attempted first");
-  assert.equal(fallbackCalled, 1, "Fallback model took over after 429");
-  assert.equal(fullText, "Hello from resilient fallback!");
+  assert.equal(await run(), "Hello from resilient fallback!");
+  assert.equal(await run(), "Hello from resilient fallback!");
+  assert.equal(primaryCalled, 2, "Each agent selection starts at the first tier");
+  assert.equal(fallbackCalled, 2, "Failover still runs after the first tier fails");
 });

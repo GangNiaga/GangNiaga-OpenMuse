@@ -1,85 +1,78 @@
+import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { getRequestListener } from "@hono/node-server";
-import type { Hono } from "hono";
+
+type Application = { fetch(request: Request): Response | Promise<Response> };
+
 import { createApp } from "../apps/server/src/app.ts";
-import { readConfig } from "../apps/server/src/config.ts";
+import { type Config, readConfig } from "../apps/server/src/config.ts";
 import { createStore } from "../apps/server/src/db.ts";
 
 export const runtime = "nodejs";
-
-let cachedApp: Hono<{ Variables: { owner: string } }> | null = null;
-let initPromise: Promise<Hono<{ Variables: { owner: string } }>> | null = null;
-
-export async function getApp(): Promise<Hono<{ Variables: { owner: string } }>> {
-  if (cachedApp) return cachedApp;
-  if (initPromise) return initPromise;
-
-  initPromise = (async () => {
-    if (!process.env.CPK_INTELLIGENCE_API_KEY) {
-      process.env.CPK_INTELLIGENCE_API_KEY = "serverless-key-placeholder";
-    }
-    const config = readConfig();
-    config.taskWorkerEnabled = false;
-
-    const dataDir = process.env.DATA_DIR || "/tmp/openmuse";
-    const databaseUrl =
-      process.env.DATABASE_URL ||
-      config.databaseUrl ||
-      "postgres://postgres.wmuxfyymcgapqcyznltp:gangniagabot2026@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres";
-
-    const db = await createStore({
-      dataDir: `${dataDir}/postgres`,
-      databaseUrl,
-    });
-
-    await db.recoverInterruptedActions().catch(() => {});
-    const { app } = await createApp(db, config);
-
-    cachedApp = app;
-    return app;
-  })();
-
-  return initPromise;
+export function assertServerlessConfig(config: Config): void {
+  if (config.mode !== "live") throw new Error("Serverless deployments require WORKSPACE_MODE=live");
+  if (!config.databaseUrl?.trim()) throw new Error("Serverless deployments require DATABASE_URL");
+  if (config.computerEnabled && !config.computerDeploymentId)
+    throw new Error("Serverless computer execution requires COMPUTER_DEPLOYMENT_ID");
 }
-
-export default async function handler(
-  req: Request | IncomingMessage,
-  res?: ServerResponse,
-): Promise<Response | undefined> {
+async function initialize(): Promise<Application> {
+  const config = readConfig();
+  assertServerlessConfig(config);
+  config.taskWorkerEnabled = false;
+  config.dataDir = process.env.DATA_DIR || "/tmp/openmuse";
+  const db = await createStore({ databaseUrl: config.databaseUrl });
   try {
-    const app = await getApp();
-    if (res && typeof res.writeHead === "function") {
-      await getRequestListener(app.fetch)(req as IncomingMessage, res);
-      return;
-    }
-    return app.fetch(req as Request);
-  } catch (err: unknown) {
-    console.error("[Serverless Init Error]:", err);
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    const stack = err instanceof Error ? err.stack : undefined;
-    const body = JSON.stringify({
-      error: "Serverless initialization failed",
-      message: errorMsg,
-      stack,
-    });
-    if (res && typeof res.writeHead === "function") {
-      if (!res.headersSent) {
-        res.writeHead(500, { "Content-Type": "application/json" });
-      }
-      res.end(body);
-      return;
-    }
-    return new Response(body, {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return (await createApp(db, config)).app;
+  } catch (error) {
+    await db.close();
+    throw error;
   }
+  // A cold instance cannot declare another instance's executing actions interrupted.
 }
-
-export const GET = (req: Request) => handler(req);
-export const POST = (req: Request) => handler(req);
-export const PUT = (req: Request) => handler(req);
-export const DELETE = (req: Request) => handler(req);
-export const PATCH = (req: Request) => handler(req);
-export const OPTIONS = (req: Request) => handler(req);
-export const HEAD = (req: Request) => handler(req);
+export function createServerlessHandler(init: () => Promise<Application>) {
+  let initialized: Promise<Application> | undefined;
+  return async (
+    req: Request | IncomingMessage,
+    res?: ServerResponse,
+  ): Promise<Response | undefined> => {
+    try {
+      if (!initialized) {
+        initialized = init().catch((error) => {
+          initialized = undefined;
+          throw error;
+        });
+      }
+      const app = await initialized;
+      if (res) {
+        await getRequestListener(app.fetch)(req as IncomingMessage, res);
+        return;
+      }
+      return await app.fetch(req as Request);
+    } catch {
+      const requestId = randomUUID();
+      console.error(JSON.stringify({ event: "serverless_request_failed", requestId }));
+      const body = JSON.stringify({ error: "Service temporarily unavailable", requestId });
+      const headers = { "Content-Type": "application/json", "Cache-Control": "no-store" };
+      if (res) {
+        if (res.writableEnded || res.destroyed) return;
+        if (res.headersSent) {
+          res.destroy();
+          return;
+        }
+        res.writeHead(503, headers);
+        res.end(body);
+        return;
+      }
+      return new Response(body, { status: 503, headers });
+    }
+  };
+}
+const handler = createServerlessHandler(initialize);
+export default handler;
+export const GET = handler,
+  POST = handler,
+  PUT = handler,
+  DELETE = handler,
+  PATCH = handler,
+  OPTIONS = handler,
+  HEAD = handler;

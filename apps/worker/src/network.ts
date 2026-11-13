@@ -3,8 +3,7 @@ import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { WorkerError } from "./errors.ts";
 
-// Conservative global-unicast allowlist: transition, documentation, private,
-// loopback, multicast and reserved networks are never browser destinations.
+// Only globally routable addresses may leave the browser proxy.
 export function isPublicIp(address: string): boolean {
   const family = isIP(address);
   if (family === 4) {

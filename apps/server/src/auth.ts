@@ -76,9 +76,14 @@ export class Auth {
 }
 export async function createAuth(db: Store, config: Config) {
   await mkdir(config.dataDir, { recursive: true, mode: 0o700 });
-  const key = await readOrCreate(join(config.dataDir, "session-signing-key"), () =>
-    randomBytes(32).toString("base64"),
-  );
+  const key =
+    config.mode === "live" && config.encryptionKey
+      ? createHmac("sha256", config.encryptionKey)
+          .update("openmuse/document-links/v1")
+          .digest("base64")
+      : await readOrCreate(join(config.dataDir, "session-signing-key"), () =>
+          randomBytes(32).toString("base64"),
+        );
   return new Auth(db, config, key);
 }
 /** Reads a private file, or creates it without replacing another process's value. */

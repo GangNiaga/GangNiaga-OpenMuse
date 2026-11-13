@@ -10,7 +10,7 @@ export function shadowedEnvKeys(
   return Object.keys(file).filter((key) => env[key] !== undefined && env[key] !== file[key]);
 }
 
-if (existsSync(".env")) {
+if (existsSync(".env") && !process.env.NODE_TEST_CONTEXT) {
   // loadEnvFile never overrides existing variables. A stale shell or system-wide value
   // (for example OPENAI_API_KEY) would otherwise silently replace the .env setting.
   const shadowed = shadowedEnvKeys(parseEnv(readFileSync(".env", "utf8")));
