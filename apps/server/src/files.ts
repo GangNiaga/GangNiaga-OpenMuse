@@ -1,12 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
 import { link, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
-import type { Artifact } from "../../../packages/domain/src/index.ts";
-import { fillPdf, inspectPdf } from "../../../packages/integrations/src/pdf.ts";
-import type { Auth } from "./auth.ts";
-import type { Config } from "./config.ts";
-import type { Store } from "./db.ts";
-import { AppError } from "./errors.ts";
+import type { Artifact } from "../../../packages/domain/src/index.js";
+import { fillPdf, inspectPdf } from "../../../packages/integrations/src/pdf.js";
+import type { Auth } from "./auth.js";
+import type { Config } from "./config.js";
+import type { Store } from "./db.js";
+import { AppError } from "./errors.js";
 
 const FILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 

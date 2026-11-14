@@ -1,17 +1,17 @@
-import "../config.ts";
+import "../config.js";
 import { createHash, randomUUID } from "node:crypto";
 import { EventType, type RunAgentInput } from "@ag-ui/core";
 import { defineTool } from "@copilotkit/runtime/v2";
 import { z } from "zod";
-import type { AgentTask } from "../../../../packages/domain/src/agent.ts";
-import { emailDraftSchema, eventDraftSchema } from "../../../../packages/domain/src/index.ts";
-import { computerInstructions, computerTools } from "../computer-tools.ts";
-import { obscuraTools } from "../obscura.ts";
-import { openbotTools } from "../openbot.ts";
-import { searchDescription, searchInputSchema, searchInstructions } from "../search.ts";
-import type { AgentService } from "./service.ts";
-import { tanstackAgent } from "./tanstack-agent.ts";
-import type { TaskContext } from "./worker.ts";
+import type { AgentTask } from "../../../../packages/domain/src/agent.js";
+import { emailDraftSchema, eventDraftSchema } from "../../../../packages/domain/src/index.js";
+import { computerInstructions, computerTools } from "../computer-tools.js";
+import { obscuraTools } from "../obscura.js";
+import { openbotTools } from "../openbot.js";
+import { searchDescription, searchInputSchema, searchInstructions } from "../search.js";
+import type { AgentService } from "./service.js";
+import { tanstackAgent } from "./tanstack-agent.js";
+import type { TaskContext } from "./worker.js";
 
 export type TaskAnswer = { question?: string; answer: string };
 

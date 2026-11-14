@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import type { BrowserSession } from "../../../packages/domain/src/index.ts";
-import type { Auth } from "./auth.ts";
-import { browserConsole } from "./browser-console.ts";
-import type { Config } from "./config.ts";
-import type { Store } from "./db.ts";
-import { AppError } from "./errors.ts";
-import type { Files } from "./files.ts";
-import { isObscuraAvailable, obscuraFetch } from "./obscura.ts";
+import type { BrowserSession } from "../../../packages/domain/src/index.js";
+import type { Auth } from "./auth.js";
+import { browserConsole } from "./browser-console.js";
+import type { Config } from "./config.js";
+import type { Store } from "./db.js";
+import { AppError } from "./errors.js";
+import type { Files } from "./files.js";
+import { isObscuraAvailable, obscuraFetch } from "./obscura.js";
 
 const sessionSchema = z.object({
   id: z.string(),
@@ -173,8 +173,8 @@ export class BrowserService {
   reopen(owner: string, id: string, url?: string, signal?: AbortSignal) {
     return this.serial(id, () => this.openOwned(owner, id, url, signal));
   }
-  navigate(owner: string, id: string, url: string) {
-    return this.reopen(owner, id, url);
+  navigate(owner: string, id: string, url: string, signal?: AbortSignal) {
+    return this.reopen(owner, id, url, signal);
   }
   private async readOwned(owner: string, id: string, signal?: AbortSignal) {
     const session = await this.get(owner, id);
@@ -196,8 +196,8 @@ export class BrowserService {
     );
     return result;
   }
-  read(owner: string, id: string) {
-    return this.serial(id, () => this.readOwned(owner, id));
+  read(owner: string, id: string, signal?: AbortSignal) {
+    return this.serial(id, () => this.readOwned(owner, id, signal));
   }
   async observe(owner: string, url: string, existingId?: string, signal?: AbortSignal) {
     try {
@@ -274,48 +274,53 @@ export class BrowserService {
       throw workerErr;
     }
   }
-  async close(owner: string, id: string) {
+  async close(owner: string, id: string, signal?: AbortSignal) {
     return this.serial(id, async () => {
       await this.get(owner, id);
       return this.save(
         owner,
-        await (await this.request(`/sessions/${encodeURIComponent(id)}/close`, {})).json(),
+        await (await this.request(`/sessions/${encodeURIComponent(id)}/close`, {}, signal)).json(),
         id,
       );
     });
   }
-  async preview(owner: string, id: string) {
+  async preview(owner: string, id: string, signal?: AbortSignal) {
     await this.get(owner, id);
-    return this.request(`/sessions/${encodeURIComponent(id)}/screenshot`);
+    return this.request(`/sessions/${encodeURIComponent(id)}/screenshot`, undefined, signal);
   }
   async extractTables(
     owner: string,
     id: string,
     options: { selector?: string; format?: "json" | "csv" | "markdown" },
+    signal?: AbortSignal,
   ) {
     await this.get(owner, id);
-    return (await this.request(`/sessions/${encodeURIComponent(id)}/tables`, options)).json();
+    return (
+      await this.request(`/sessions/${encodeURIComponent(id)}/tables`, options, signal)
+    ).json();
   }
-  async screenshot(owner: string, id: string, clip: unknown) {
+  async screenshot(owner: string, id: string, clip: unknown, signal?: AbortSignal) {
     await this.get(owner, id);
-    return this.request(`/sessions/${encodeURIComponent(id)}/screenshot`, { clip });
+    return this.request(`/sessions/${encodeURIComponent(id)}/screenshot`, { clip }, signal);
   }
-  async input(owner: string, id: string, value: unknown) {
+  async input(owner: string, id: string, value: unknown, signal?: AbortSignal) {
     if (!value || typeof value !== "object" || Array.isArray(value))
       throw new AppError("A JSON object is required for browser input", 422);
     return this.serial(id, async () => {
       await this.get(owner, id);
       return this.save(
         owner,
-        await (await this.request(`/sessions/${encodeURIComponent(id)}/input`, value)).json(),
+        await (
+          await this.request(`/sessions/${encodeURIComponent(id)}/input`, value, signal)
+        ).json(),
         id,
       );
     });
   }
-  async imports(owner: string, id: string) {
-    return this.serial(id, () => this.importsOwned(owner, id));
+  async imports(owner: string, id: string, signal?: AbortSignal) {
+    return this.serial(id, () => this.importsOwned(owner, id, signal));
   }
-  private async importsOwned(owner: string, id: string) {
+  private async importsOwned(owner: string, id: string, signal?: AbortSignal) {
     await this.get(owner, id);
     const { downloads, failures } = z
       .object({
@@ -324,7 +329,11 @@ export class BrowserService {
         ),
         failures: z.array(failureSchema),
       })
-      .parse(await (await this.request(`/sessions/${encodeURIComponent(id)}/downloads`)).json());
+      .parse(
+        await (
+          await this.request(`/sessions/${encodeURIComponent(id)}/downloads`, undefined, signal)
+        ).json(),
+      );
     const saved = [];
     for (const download of downloads) {
       const existing = await this.db.get<{ fileId: string }>(
@@ -338,6 +347,8 @@ export class BrowserService {
       }
       const response = await this.request(
         `/sessions/${encodeURIComponent(id)}/downloads/${encodeURIComponent(download.id)}`,
+        undefined,
+        signal,
       );
       const file = await this.files.import(
         owner,

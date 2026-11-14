@@ -1,9 +1,9 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
-import { decryptSecret, encryptSecret } from "../../../packages/integrations/src/vault.ts";
-import type { Config } from "./config.ts";
-import type { Store } from "./db.ts";
-import { AppError } from "./errors.ts";
+import { decryptSecret, encryptSecret } from "../../../packages/integrations/src/vault.js";
+import type { Config } from "./config.js";
+import type { Store } from "./db.js";
+import { AppError } from "./errors.js";
 
 const tokenSchema = z.object({
   access_token: z.string().min(1),

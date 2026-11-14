@@ -1,6 +1,6 @@
 import { getConnInfo } from "@hono/node-server/conninfo";
 import type { Context } from "hono";
-import { AppError } from "./errors.ts";
+import { AppError } from "./errors.js";
 
 interface RateLimitEntry {
   count: number;

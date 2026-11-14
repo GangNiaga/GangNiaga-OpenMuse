@@ -1,9 +1,9 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { link, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { Config } from "./config.ts";
-import type { Store } from "./db.ts";
-import { AppError } from "./errors.ts";
+import type { Config } from "./config.js";
+import type { Store } from "./db.js";
+import { AppError } from "./errors.js";
 
 const digest = (value: string) => createHash("sha256").update(value).digest();
 export class Auth {

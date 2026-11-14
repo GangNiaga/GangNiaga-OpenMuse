@@ -17,7 +17,7 @@ after(async () => {
   await db.close();
 });
 
-test("local computer refuses production execution and passes only allowlisted environment", async () => {
+test("local computer refuses live and production execution and passes only allowlisted environment", async () => {
   const previousNodeEnv = process.env.NODE_ENV;
   const previousSecret = process.env.OPENAI_API_KEY;
   const previousOpenBotUrl = process.env.OPENBOT_URL;
@@ -26,6 +26,9 @@ test("local computer refuses production execution and passes only allowlisted en
     process.env.NODE_ENV = "production";
     process.env.OPENAI_API_KEY = "must-not-enter-local-shell";
     process.env.OPENBOT_URL = "http://127.0.0.1:3001";
+    const live = new LocalComputer({ ...config, mode: "live", dataDir });
+    await assert.rejects(live.start("owner"), /live/i);
+
     const local = new LocalComputer({ ...config, dataDir });
 
     await assert.rejects(local.start("owner"), /production/i);

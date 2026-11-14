@@ -1,7 +1,7 @@
 import { defineTool } from "@copilotkit/runtime/v2";
 import { z } from "zod";
-import { type JevToolResult, jevOptionSchema } from "../../../../packages/domain/src/jev.ts";
-import type { JevService } from "./service.ts";
+import { type JevToolResult, jevOptionSchema } from "../../../../packages/domain/src/jev.js";
+import type { JevService } from "./service.js";
 
 const optionInput = jevOptionSchema
   .omit({ id: true })

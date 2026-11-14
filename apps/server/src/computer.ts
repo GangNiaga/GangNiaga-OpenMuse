@@ -7,23 +7,23 @@ import type {
   ComputerCommand,
   ComputerDirectory,
   ComputerSnapshot,
-} from "../../../packages/domain/src/computer.ts";
-import { readOrCreate } from "./auth.ts";
+} from "../../../packages/domain/src/computer.js";
+import { readOrCreate } from "./auth.js";
 import {
   type ComputerBackend,
   DesktopComputerBackend,
   DockerComputer,
   LocalComputer,
-} from "./computer-backend.ts";
+} from "./computer-backend.js";
 import {
   describeDesktopAction,
   desktopActionSchema,
   E2BDesktopComputer,
   resolution,
-} from "./computer-e2b-desktop.ts";
-import type { Config } from "./config.ts";
-import type { Store } from "./db.ts";
-import { AppError } from "./errors.ts";
+} from "./computer-e2b-desktop.js";
+import type { Config } from "./config.js";
+import type { Store } from "./db.js";
+import { AppError } from "./errors.js";
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 export const computerOutputLimit = 128 * 1024;

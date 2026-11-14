@@ -5,10 +5,10 @@ import {
   computerCommandSchema,
   computerPathSchema,
   computerWriteSchema,
-} from "./computer.ts";
-import { desktopActionSchema, resolution } from "./computer-e2b-desktop.ts";
-import type { ComputerProvider } from "./config.ts";
-import type { Files } from "./files.ts";
+} from "./computer.js";
+import { desktopActionSchema, resolution } from "./computer-e2b-desktop.js";
+import type { ComputerProvider } from "./config.js";
+import type { Files } from "./files.js";
 
 const isWin = process.platform === "win32";
 

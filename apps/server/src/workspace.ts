@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { localDateTime } from "../../../packages/domain/src/date-time.ts";
+import { localDateTime } from "../../../packages/domain/src/date-time.js";
 import type {
   ActionProposal,
   ActivityEntry,
@@ -9,16 +9,16 @@ import type {
   Mail,
   ProposalInput,
   Workspace,
-} from "../../../packages/domain/src/index.ts";
-import { GoogleClient } from "../../../packages/integrations/src/google.ts";
-import { createSamplePdf } from "../../../packages/integrations/src/pdf.ts";
-import type { ActionService } from "./actions.ts";
-import { agentConfigured, hasLiveIntelligence } from "./agent.ts";
-import type { Config } from "./config.ts";
-import type { Store } from "./db.ts";
-import { AppError } from "./errors.ts";
-import type { Files } from "./files.ts";
-import type { GoogleAuth } from "./google-auth.ts";
+} from "../../../packages/domain/src/index.js";
+import { GoogleClient } from "../../../packages/integrations/src/google.js";
+import { createSamplePdf } from "../../../packages/integrations/src/pdf.js";
+import type { ActionService } from "./actions.js";
+import { agentConfigured, hasLiveIntelligence } from "./agent.js";
+import type { Config } from "./config.js";
+import type { Store } from "./db.js";
+import { AppError } from "./errors.js";
+import type { Files } from "./files.js";
+import type { GoogleAuth } from "./google-auth.js";
 
 export class WorkspaceService {
   private seeding = new Map<string, Promise<void>>();

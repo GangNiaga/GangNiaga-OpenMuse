@@ -7,9 +7,9 @@ import {
   computerOutput,
   computerOutputLimit,
   type DockerResult,
-} from "./computer.ts";
-import type { Config } from "./config.ts";
-import { AppError } from "./errors.ts";
+} from "./computer.js";
+import type { Config } from "./config.js";
+import { AppError } from "./errors.js";
 
 // The SDK is imported lazily so Docker-only installs never load it at runtime.
 const sdk = () => import("@e2b/desktop") as Promise<any>;

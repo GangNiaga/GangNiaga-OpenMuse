@@ -5,8 +5,8 @@ import {
   computerCommandSchema,
   computerPathSchema,
   computerWriteSchema,
-} from "./computer.ts";
-import type { Files } from "./files.ts";
+} from "./computer.js";
+import type { Files } from "./files.js";
 
 export function computerRoutes(computer: ComputerService, files: Files) {
   const app = new Hono<{ Variables: { owner: string } }>();

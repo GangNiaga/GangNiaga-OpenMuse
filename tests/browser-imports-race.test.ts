@@ -80,6 +80,11 @@ test("concurrent browser imports import each download exactly once", async (t) =
   });
 
   await db.put("owner", "browsers", savedSession);
+  const aborted = new AbortController();
+  aborted.abort();
+  await assert.rejects(service.read("owner", sessionId, aborted.signal), {
+    name: "AbortError",
+  });
   const [first, second] = await Promise.all([
     service.imports("owner", sessionId),
     service.imports("owner", sessionId),

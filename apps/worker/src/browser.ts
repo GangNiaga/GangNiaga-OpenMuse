@@ -28,6 +28,38 @@ type Running = {
   downloadError?: boolean;
 };
 const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const browserEnvironmentKeys = [
+  "PATH",
+  "Path",
+  "SystemRoot",
+  "WINDIR",
+  "PATHEXT",
+  "TEMP",
+  "TMP",
+  "HOME",
+  "USERPROFILE",
+  "APPDATA",
+  "LOCALAPPDATA",
+  "LANG",
+  "LC_ALL",
+  "XDG_CACHE_HOME",
+  "XDG_CONFIG_HOME",
+  "XDG_DATA_HOME",
+  "XDG_RUNTIME_DIR",
+  "SSL_CERT_FILE",
+  "SSL_CERT_DIR",
+  "PLAYWRIGHT_BROWSERS_PATH",
+];
+
+export function browserEnvironment(
+  source: NodeJS.ProcessEnv = process.env,
+): Record<string, string> {
+  return Object.fromEntries(
+    browserEnvironmentKeys.flatMap((key) =>
+      source[key] === undefined ? [] : [[key, source[key] as string]],
+    ),
+  );
+}
 
 export function validateSessionId(id: unknown): string {
   if (typeof id !== "string" || !SESSION_ID.test(id))
@@ -185,7 +217,7 @@ export async function createBrowserManager(
       context = await chromium.launchPersistentContext(profileDir, {
         // Chromium needs standard OS environment variables on Windows and Linux.
         env: {
-          ...process.env,
+          ...browserEnvironment(),
           HOME: process.env.HOME ?? process.env.USERPROFILE ?? tmpdir(),
           LANG: "C.UTF-8",
         },

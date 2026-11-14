@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, symlink } from "node:fs/promises";
+import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -84,6 +84,39 @@ test("Obscura child environment excludes application credentials", async () => {
   assert.equal(env.DATABASE_URL, undefined);
   assert.equal(env.OPENAI_API_KEY, undefined);
   assert.equal(env.OBSCURA_ALLOW_PRIVATE_NETWORK, "0");
+});
+
+test("Obscura fetch stops its child process when the request is cancelled", async (t) => {
+  const { obscuraFetch } = await import("../apps/server/src/obscura.ts");
+  const directory = await mkdtemp(join(tmpdir(), "openmuse-obscura-cancel-"));
+  const binary = join(
+    directory,
+    process.platform === "win32" ? "mock-obscura.cmd" : "mock-obscura",
+  );
+  await writeFile(
+    binary,
+    process.platform === "win32"
+      ? "@echo off\r\nping -n 31 127.0.0.1 >nul\r\n"
+      : "#!/bin/sh\nsleep 30\n",
+    { mode: 0o755 },
+  );
+  const previous = process.env.OBSCURA_BIN;
+  process.env.OBSCURA_BIN = binary;
+  t.after(async () => {
+    if (previous === undefined) delete process.env.OBSCURA_BIN;
+    else process.env.OBSCURA_BIN = previous;
+    await rm(directory, { recursive: true, force: true });
+  });
+
+  const controller = new AbortController();
+  const pending = obscuraFetch({
+    url: "https://example.com",
+    dump: "markdown",
+    stealth: true,
+    signal: controller.signal,
+  });
+  setTimeout(() => controller.abort(), 50);
+  await assert.rejects(pending, /abort|cancel/i);
 });
 
 for (const partial of [false, true])

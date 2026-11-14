@@ -23,7 +23,7 @@ import {
 } from "@tanstack/ai-openai";
 import { map, mergeMap, type Observable } from "rxjs";
 import { z } from "zod";
-import { MODEL_MAX_RETRIES } from "../config.ts";
+import { MODEL_MAX_RETRIES } from "../config.js";
 
 // Same "provider/model" strings, env vars and base URL formats as the AI SDK resolver in
 // @copilotkit/runtime. Each provider SDK retries transient failures up to MODEL_MAX_RETRIES times.

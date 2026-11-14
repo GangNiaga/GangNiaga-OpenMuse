@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import pg from "pg";
-import { backgroundFailure } from "./log.ts";
+import { backgroundFailure } from "./log.js";
 
 type Row = { data: Record<string, unknown> };
 interface Database {

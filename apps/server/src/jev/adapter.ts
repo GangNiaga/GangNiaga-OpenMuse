@@ -5,9 +5,9 @@ import {
   TypeSafeClient,
   type TypeSafeClientConfig,
 } from "@typesafe-ai/sdk";
-import type { JevOption } from "../../../../packages/domain/src/jev.ts";
-import { type Config, defaultJevModel } from "../config.ts";
-import { providerFailure } from "../log.ts";
+import type { JevOption } from "../../../../packages/domain/src/jev.js";
+import { type Config, defaultJevModel } from "../config.js";
+import { providerFailure } from "../log.js";
 
 export type JevControl = "clarification" | "comparison" | "agent";
 export type JevDecisionInput = {

@@ -1,4 +1,4 @@
-import "./config.ts";
+import "./config.js";
 import { HttpAgent } from "@ag-ui/client";
 import {
   type AgentsFactory,
@@ -6,11 +6,11 @@ import {
   CopilotRuntime,
   createCopilotHonoHandler,
 } from "@copilotkit/runtime/v2";
-import type { Auth } from "./auth.ts";
-import type { Config } from "./config.ts";
-import { ConversationAgent } from "./engine/conversation.ts";
-import type { AgentService } from "./engine/service.ts";
-import { createJevAdapter, type JevAdapter } from "./jev/adapter.ts";
+import type { Auth } from "./auth.js";
+import type { Config } from "./config.js";
+import { ConversationAgent } from "./engine/conversation.js";
+import type { AgentService } from "./engine/service.js";
+import { createJevAdapter, type JevAdapter } from "./jev/adapter.js";
 
 export function agentConfigured(config: Config) {
   return (

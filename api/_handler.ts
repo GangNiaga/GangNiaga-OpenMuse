@@ -4,9 +4,9 @@ import { getRequestListener } from "@hono/node-server";
 
 type Application = { fetch(request: Request): Response | Promise<Response> };
 
-import { createApp } from "../apps/server/src/app.ts";
-import { type Config, readConfig } from "../apps/server/src/config.ts";
-import { createStore } from "../apps/server/src/db.ts";
+import { createApp } from "../apps/server/src/app.js";
+import { type Config, readConfig } from "../apps/server/src/config.js";
+import { createStore } from "../apps/server/src/db.js";
 
 export const runtime = "nodejs";
 export function assertServerlessConfig(config: Config): void {

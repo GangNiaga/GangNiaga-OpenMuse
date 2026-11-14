@@ -9,15 +9,10 @@ import {
   computerOutput,
   type DockerResult,
   type DockerRunner,
-} from "./computer.ts";
-import { desktopCommand, type E2BDesktopComputer } from "./computer-e2b-desktop.ts";
-import type { ComputerProvider, Config } from "./config.ts";
-import { AppError } from "./errors.ts";
-
-const LOCAL_COMPUTER_DISABLED_IN_PRODUCTION = () => {
-  if (process.env.NODE_ENV === "production")
-    throw new AppError("The local computer backend is disabled in production", 403);
-};
+} from "./computer.js";
+import { desktopCommand, type E2BDesktopComputer } from "./computer-e2b-desktop.js";
+import type { ComputerProvider, Config } from "./config.js";
+import { AppError } from "./errors.js";
 
 export interface ComputerSession {
   exec(command: string, cwd: string, signal?: AbortSignal): Promise<DockerResult>;
@@ -418,9 +413,9 @@ export function localComputerEnvironment(workspaceDir: string): Record<string, s
   return environment;
 }
 
-function assertLocalComputerAllowed(): void {
-  if (process.env.NODE_ENV === "production")
-    throw new AppError("The local computer backend is disabled in production", 403);
+function assertLocalComputerAllowed(config: Pick<Config, "mode">): void {
+  if (process.env.NODE_ENV === "production" || config.mode === "live")
+    throw new AppError("The local computer backend is disabled in production and live mode", 403);
 }
 
 export class LocalComputer implements ComputerBackend {
@@ -428,8 +423,10 @@ export class LocalComputer implements ComputerBackend {
   readonly receipts = "computer-local-commands";
   readonly network = "enabled";
   private readonly workspaceDir: string;
+  private readonly config: Config;
 
   constructor(config: Config) {
+    this.config = config;
     this.workspaceDir = join(config.dataDir, "workspace");
   }
 
@@ -469,7 +466,7 @@ export class LocalComputer implements ComputerBackend {
   }
 
   async start(owner: string): Promise<void> {
-    assertLocalComputerAllowed();
+    assertLocalComputerAllowed(this.config);
     await mkdir(this.workspaceDir, { recursive: true });
   }
 
@@ -498,7 +495,7 @@ export class LocalComputer implements ComputerBackend {
             ? ["-NoProfile", "-NonInteractive", "-Command", command]
             : ["--noprofile", "--norc", "-c", command];
 
-          assertLocalComputerAllowed();
+          assertLocalComputerAllowed(this.config);
           const child = spawn(shell, shellArgs, {
             cwd: workingDir,
             env: localComputerEnvironment(workspaceDir),
@@ -542,7 +539,7 @@ export class LocalComputer implements ComputerBackend {
       },
 
       file: async (input: string, _seconds: number, maxOutputBytes: number) => {
-        LOCAL_COMPUTER_DISABLED_IN_PRODUCTION();
+        assertLocalComputerAllowed(this.config);
         try {
           const req = JSON.parse(input);
           const { path: virtualPath, operation, text } = req;

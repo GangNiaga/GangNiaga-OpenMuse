@@ -1,6 +1,6 @@
 import { parentPort, workerData } from "node:worker_threads";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { type TableFormat, tableResult } from "../../worker/src/extraction.ts";
+import { type TableFormat, tableResult } from "../../worker/src/extraction.js";
 
 async function extract() {
   const task = getDocument({

@@ -9,7 +9,7 @@ import {
   emailDraftSchema,
   eventDraftSchema,
   type Mail,
-} from "../../domain/src/index.ts";
+} from "../../domain/src/index.js";
 
 const GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me";
 const CALENDAR = "https://www.googleapis.com/calendar/v3";

@@ -4,7 +4,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import project from "../../../package.json" with { type: "json" };
-import type { Store } from "./db.ts";
+import type { Store } from "./db.js";
 
 export const searchInputSchema = z.object({
   objective: z.string().trim().min(1).max(2000),

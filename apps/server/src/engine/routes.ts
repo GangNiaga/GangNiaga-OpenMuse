@@ -5,10 +5,10 @@ import type {
   AgentIdentity,
   AgentMemory,
   AgentNotification,
-} from "../../../../packages/domain/src/agent.ts";
-import { createTaskSchema } from "../../../../packages/domain/src/agent.ts";
-import { AppError } from "../errors.ts";
-import type { AgentService } from "./service.ts";
+} from "../../../../packages/domain/src/agent.js";
+import { createTaskSchema } from "../../../../packages/domain/src/agent.js";
+import { AppError } from "../errors.js";
+import type { AgentService } from "./service.js";
 
 const text = z.string().trim().min(1).max(4000);
 const memorySchema = z.object({ text, source: z.string().trim().min(1).max(200).optional() });

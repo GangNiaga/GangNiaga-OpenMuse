@@ -1,6 +1,6 @@
 import { Worker } from "node:worker_threads";
-import type { TableFormat } from "../../worker/src/extraction.ts";
-import { AppError } from "./errors.ts";
+import type { TableFormat } from "../../worker/src/extraction.js";
+import { AppError } from "./errors.js";
 export function extractPdfTables(
   bytes: Uint8Array,
   format: TableFormat = "json",
@@ -21,8 +21,8 @@ export function extractPdfTables(
       new URL(source ? "./pdf-table-worker.ts" : "./pdf-table-worker.js", import.meta.url),
       {
         workerData: { bytes, format },
-        execArgv: source ? ["--experimental-strip-types"] : [],
-        resourceLimits: { maxOldGenerationSizeMb: 128 },
+        execArgv: source ? ["--import", "tsx"] : [],
+        resourceLimits: { maxOldGenerationSizeMb: 256 },
       },
     );
     let settled = false;

@@ -1,9 +1,9 @@
 import { spawn } from "node:child_process";
 import { defineTool, type ToolDefinition } from "@copilotkit/runtime/v2";
 import { z } from "zod";
-import { validatePublicUrl } from "../../worker/src/network.ts";
-import { startEgressProxy } from "../../worker/src/proxy.ts";
-import { AppError } from "./errors.ts";
+import { validatePublicUrl } from "../../worker/src/network.js";
+import { startEgressProxy } from "../../worker/src/proxy.js";
+import { AppError } from "./errors.js";
 
 export interface ObscuraFetchOptions {
   url: string;

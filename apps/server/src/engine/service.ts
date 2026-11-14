@@ -15,35 +15,35 @@ import {
   type Monitor,
   monitorInputSchema,
   type RunEvent,
-} from "../../../../packages/domain/src/agent.ts";
+} from "../../../../packages/domain/src/agent.js";
 import type {
   ActionProposal,
   Artifact,
   BrowserSession,
   Mail,
   ProposalInput,
-} from "../../../../packages/domain/src/index.ts";
-import type { ActionService } from "../actions.ts";
-import type { BrowserService } from "../browser.ts";
-import { ComputerService } from "../computer.ts";
-import type { Config } from "../config.ts";
-import type { Store } from "../db.ts";
-import { AppError } from "../errors.ts";
-import type { Files } from "../files.ts";
-import { backgroundFailure } from "../log.ts";
-import { OpenBotService } from "../openbot.ts";
-import { SearchService } from "../search.ts";
-import type { WorkspaceService } from "../workspace.ts";
-import { analyzeSpending } from "./finance.ts";
-import { executeModelTask, taskAnswers } from "./model.ts";
+} from "../../../../packages/domain/src/index.js";
+import type { ActionService } from "../actions.js";
+import type { BrowserService } from "../browser.js";
+import { ComputerService } from "../computer.js";
+import type { Config } from "../config.js";
+import type { Store } from "../db.js";
+import { AppError } from "../errors.js";
+import type { Files } from "../files.js";
+import { backgroundFailure } from "../log.js";
+import { OpenBotService } from "../openbot.js";
+import { SearchService } from "../search.js";
+import type { WorkspaceService } from "../workspace.js";
+import { analyzeSpending } from "./finance.js";
+import { executeModelTask, taskAnswers } from "./model.js";
 import {
   countPageDiff,
   describePageDiff,
   diffPage,
   pageLines,
   withoutRelativeTimes,
-} from "./page-diff.ts";
-import { LostLeaseError, type TaskContext, TaskWorker } from "./worker.ts";
+} from "./page-diff.js";
+import { LostLeaseError, type TaskContext, TaskWorker } from "./worker.js";
 
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 /** A change watch's last saved page: its hash, relative-time-free fingerprint and lines. */

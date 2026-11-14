@@ -1,4 +1,4 @@
-import "../config.ts";
+import "../config.js";
 import { createHash, randomUUID } from "node:crypto";
 import { AbstractAgent } from "@ag-ui/client";
 import { type BaseEvent, EventType, type RunAgentInput } from "@ag-ui/core";
@@ -9,19 +9,19 @@ import {
   createTaskSchema,
   goalInputSchema,
   monitorInputSchema,
-} from "../../../../packages/domain/src/agent.ts";
-import { calendarRangeSchema } from "../../../../packages/domain/src/index.ts";
-import { jevActionPrefix, parseJevAction } from "../../../../packages/domain/src/jev.ts";
-import { computerInstructions, computerTools } from "../computer-tools.ts";
-import type { Config } from "../config.ts";
-import { createJevAdapter, type JevAdapter } from "../jev/adapter.ts";
-import { JevService } from "../jev/service.ts";
-import { presentChoicesTool } from "../jev/tools.ts";
-import { obscuraTools } from "../obscura.ts";
-import { openbotTools } from "../openbot.ts";
-import { searchDescription, searchInputSchema, searchInstructions } from "../search.ts";
-import type { AgentService } from "./service.ts";
-import { tanstackAgent } from "./tanstack-agent.ts";
+} from "../../../../packages/domain/src/agent.js";
+import { calendarRangeSchema } from "../../../../packages/domain/src/index.js";
+import { jevActionPrefix, parseJevAction } from "../../../../packages/domain/src/jev.js";
+import { computerInstructions, computerTools } from "../computer-tools.js";
+import type { Config } from "../config.js";
+import { createJevAdapter, type JevAdapter } from "../jev/adapter.js";
+import { JevService } from "../jev/service.js";
+import { presentChoicesTool } from "../jev/tools.js";
+import { obscuraTools } from "../obscura.js";
+import { openbotTools } from "../openbot.js";
+import { searchDescription, searchInputSchema, searchInstructions } from "../search.js";
+import type { AgentService } from "./service.js";
+import { tanstackAgent } from "./tanstack-agent.js";
 
 function clipCalendarText(text: string, limit: number) {
   const clipped = text.slice(0, limit);

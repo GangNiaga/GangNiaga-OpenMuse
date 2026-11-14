@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import type { AgentTask, RunEvent } from "../../../../packages/domain/src/agent.ts";
-import type { Store } from "../db.ts";
-import { backgroundFailure } from "../log.ts";
+import type { AgentTask, RunEvent } from "../../../../packages/domain/src/agent.js";
+import type { Store } from "../db.js";
+import { backgroundFailure } from "../log.js";
 
 export class LostLeaseError extends Error {
   constructor() {

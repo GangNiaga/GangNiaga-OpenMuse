@@ -7,9 +7,9 @@ import {
   jevActionSchema,
   jevOptionSchema,
   jevPanelSchema,
-} from "../../../../packages/domain/src/jev.ts";
-import type { Store } from "../db.ts";
-import { type JevAdapter, rankJevOptions } from "./adapter.ts";
+} from "../../../../packages/domain/src/jev.js";
+import type { Store } from "../db.js";
+import { type JevAdapter, rankJevOptions } from "./adapter.js";
 
 export type PresentChoicesInput = {
   /** The person's latest message; the tool always supplies it, direct callers fall back to `message`. */

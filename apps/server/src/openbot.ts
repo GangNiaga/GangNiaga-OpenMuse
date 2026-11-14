@@ -8,8 +8,8 @@ import {
   type OpenBotProbe,
   type OpenBotTransport,
   withTimeoutSignal,
-} from "../../../packages/backends/src/openbot.ts";
-import type { Config } from "./config.ts";
+} from "../../../packages/backends/src/openbot.js";
+import type { Config } from "./config.js";
 
 export class OpenBotService {
   readonly url: string;

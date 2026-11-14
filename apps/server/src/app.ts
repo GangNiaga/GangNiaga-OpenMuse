@@ -1,6 +1,6 @@
-import { ConversationAgent } from "./engine/conversation.ts";
-import { extractPdfTables } from "./pdf-tables.ts";
-import "./config.ts";
+import { ConversationAgent } from "./engine/conversation.js";
+import { extractPdfTables } from "./pdf-tables.js";
+import "./config.js";
 import { randomUUID } from "node:crypto";
 import { MessageSchema } from "@ag-ui/core";
 import { CopilotKitIntelligence } from "@copilotkit/runtime/v2";
@@ -12,24 +12,24 @@ import {
   calendarRangeSchema,
   emailDraftSchema,
   proposalSchema,
-} from "../../../packages/domain/src/index.ts";
-import { ActionService } from "./actions.ts";
-import { agentConfigured, hasLiveIntelligence, makeRuntime } from "./agent.ts";
-import { createAuth } from "./auth.ts";
-import { BrowserService } from "./browser.ts";
-import { ComputerService, type DockerRunner, resolveComputerDeployment } from "./computer.ts";
-import { computerRoutes } from "./computer-routes.ts";
-import { assertApiDeploymentConfig, type Config } from "./config.ts";
-import type { Store } from "./db.ts";
-import { agentRoutes } from "./engine/routes.ts";
-import { AgentService } from "./engine/service.ts";
-import { AppError } from "./errors.ts";
-import { Files } from "./files.ts";
-import { GoogleAuth } from "./google-auth.ts";
-import { isObscuraAvailable, obscuraFetch, obscuraFetchSchema } from "./obscura.ts";
-import { OpenBotService, openbotRoutes } from "./openbot.ts";
-import { rateLimit } from "./rate-limit.ts";
-import { WorkspaceService } from "./workspace.ts";
+} from "../../../packages/domain/src/index.js";
+import { ActionService } from "./actions.js";
+import { agentConfigured, hasLiveIntelligence, makeRuntime } from "./agent.js";
+import { createAuth } from "./auth.js";
+import { BrowserService } from "./browser.js";
+import { ComputerService, type DockerRunner, resolveComputerDeployment } from "./computer.js";
+import { computerRoutes } from "./computer-routes.js";
+import { assertApiDeploymentConfig, type Config } from "./config.js";
+import type { Store } from "./db.js";
+import { agentRoutes } from "./engine/routes.js";
+import { AgentService } from "./engine/service.js";
+import { AppError } from "./errors.js";
+import { Files } from "./files.js";
+import { GoogleAuth } from "./google-auth.js";
+import { isObscuraAvailable, obscuraFetch, obscuraFetchSchema } from "./obscura.js";
+import { OpenBotService, openbotRoutes } from "./openbot.js";
+import { rateLimit } from "./rate-limit.js";
+import { WorkspaceService } from "./workspace.js";
 
 export async function createApp(
   db: Store,
@@ -128,69 +128,6 @@ export async function createApp(
     }),
   );
 
-  // Tool Catalog - lists available tools for agents
-  app.get("/api/tools", async (c) => {
-    const coreTools = [
-      { name: "memory_read", description: "Read from agent memory", category: "core", parameters: { type: "object", properties: { key: { type: "string" } }, required: ["key"] }, requiredPermissions: ["memory:read"] },
-      { name: "memory_write", description: "Write to agent memory", category: "core", parameters: { type: "object", properties: { key: { type: "string" }, value: {} }, required: ["key", "value"] }, requiredPermissions: ["memory:write"] },
-      { name: "host_shell", description: "Execute shell command on host", category: "host", parameters: { type: "object", properties: { command: { type: "string" }, cwd: { type: "string" } }, required: ["command"] }, requiredPermissions: ["host:shell"] },
-      { name: "host_read", description: "Read file from host", category: "host", parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] }, requiredPermissions: ["host:read"] },
-      { name: "host_write", description: "Write file to host", category: "host", parameters: { type: "object", properties: { path: { type: "string" }, content: { type: "string" } }, required: ["path", "content"] }, requiredPermissions: ["host:write"] },
-      { name: "browser_navigate", description: "Navigate browser to URL", category: "browser", parameters: { type: "object", properties: { url: { type: "string", format: "uri" } }, required: ["url"] }, requiredPermissions: ["browser:navigate"] },
-      { name: "browser_read", description: "Read page content", category: "browser", parameters: { type: "object", properties: { selector: { type: "string" } } }, requiredPermissions: ["browser:read"] },
-      { name: "browser_click", description: "Click element", category: "browser", parameters: { type: "object", properties: { selector: { type: "string" } }, required: ["selector"] }, requiredPermissions: ["browser:click"] },
-      { name: "browser_type", description: "Type text into element", category: "browser", parameters: { type: "object", properties: { selector: { type: "string" }, text: { type: "string" } }, required: ["selector", "text"] }, requiredPermissions: ["browser:type"] },
-      { name: "browser_screenshot", description: "Take screenshot", category: "browser", parameters: { type: "object", properties: { fullPage: { type: "boolean" }, clip: { type: "object" } } }, requiredPermissions: ["browser:screenshot"] },
-      { name: "browser_extract_table", description: "Extract HTML table to structured data", category: "browser", parameters: { type: "object", properties: { selector: { type: "string" }, format: { type: "string", enum: ["json", "csv", "markdown"] } }, required: ["selector"] }, requiredPermissions: ["browser:read"] },
-      { name: "file_read", description: "Read file from workspace", category: "file", parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] }, requiredPermissions: ["file:read"] },
-      { name: "file_write", description: "Write file to workspace", category: "file", parameters: { type: "object", properties: { path: { type: "string" }, content: { type: "string" } }, required: ["path", "content"] }, requiredPermissions: ["file:write"] },
-      { name: "pdf_extract_tables", description: "Extract tables from PDF", category: "file", parameters: { type: "object", properties: { fileId: { type: "string" }, format: { type: "string", enum: ["json", "csv", "markdown"] } }, required: ["fileId"] }, requiredPermissions: ["file:read"] },
-      { name: "network_fetch", description: "Fetch HTTP resource", category: "network", parameters: { type: "object", properties: { url: { type: "string", format: "uri" }, method: { type: "string", enum: ["GET", "POST", "PUT", "DELETE"] }, headers: { type: "object" }, body: { type: "string" } }, required: ["url"] }, requiredPermissions: ["network:fetch"] },
-      { name: "computer_exec", description: "Execute command in computer sandbox", category: "computer", parameters: { type: "object", properties: { command: { type: "string" }, cwd: { type: "string" } }, required: ["command"] }, requiredPermissions: ["computer:exec"] },
-      { name: "computer_file", description: "Read/write file in computer sandbox", category: "computer", parameters: { type: "object", properties: { path: { type: "string" }, content: { type: "string" } }, required: ["path"] }, requiredPermissions: ["computer:file"] },
-    ];
-    return c.json({ tools: coreTools });
-  });
-
-  // Enhanced Health Check
-  app.get("/api/health/detailed", async (c) => {
-    const checks: Record<string, { ok: boolean; detail?: string }> = {};
-
-    // Database check
-    try {
-      await db.get("system", "health", "probe");
-      checks.database = { ok: true };
-    } catch (e) {
-      checks.database = { ok: false, detail: String(e) };
-    }
-
-    // PGlite check
-    checks.pglite = { ok: true, detail: "embedded" };
-
-    // Worker check
-    try {
-      checks.worker = { ok: Boolean(config.workerUrl), detail: config.workerUrl ? "configured" : "not configured" };
-    } catch (e) {
-      checks.worker = { ok: false, detail: String(e) };
-    }
-
-    // Obscura check
-    checks.obscura = { ok: await isObscuraAvailable(), detail: "binary check" };
-
-    // OpenBot check
-    checks.openbot = { ok: await openbot.reachable(), detail: "reachable" };
-
-    const allOk = Object.values(checks).every(c => c.ok);
-    return c.json(
-      {
-        status: allOk ? "healthy" : "degraded",
-        version: "1.0.0",
-        timestamp: new Date().toISOString(),
-        checks,
-      },
-      allOk ? 200 : 503,
-    );
-  });
   let loginWindow = 0,
     loginAttempts = 0;
   app.post("/api/session", async (c) => {
@@ -276,6 +213,7 @@ export async function createApp(
       .get<{ lastTickAt: string }>("system", "worker-status", "tasks")
       .catch(() => null);
     const tasks =
+      !config.taskWorkerEnabled ||
       agent.worker.running ||
       Boolean(heartbeat && Date.now() - Date.parse(heartbeat.lastTickAt) < 15000);
     const checks = { database, browser: browserReady, openbot: openbotReady, tasks };
@@ -461,7 +399,7 @@ export async function createApp(
   });
   app.post("/api/browsers", async (c) => {
     const body = z.object({ url: z.url().max(4096) }).parse(await c.req.json());
-    return c.json(await browser.create(c.get("owner"), body.url), 201);
+    return c.json(await browser.create(c.get("owner"), body.url, c.req.raw.signal), 201);
   });
   app.get("/api/browsers/:id", async (c) => {
     const owner = c.get("owner");
@@ -469,21 +407,25 @@ export async function createApp(
   });
   app.post("/api/browsers/:id/navigate", async (c) => {
     const body = z.object({ url: z.url().max(4096) }).parse(await c.req.json());
-    return c.json(await browser.navigate(c.get("owner"), c.req.param("id"), body.url));
+    return c.json(
+      await browser.navigate(c.get("owner"), c.req.param("id"), body.url, c.req.raw.signal),
+    );
   });
   app.post("/api/browsers/:id/close", async (c) =>
-    c.json(await browser.close(c.get("owner"), c.req.param("id"))),
+    c.json(await browser.close(c.get("owner"), c.req.param("id"), c.req.raw.signal)),
   );
   app.get("/api/browsers/:id/read", async (c) =>
-    c.json(await browser.read(c.get("owner"), c.req.param("id"))),
+    c.json(await browser.read(c.get("owner"), c.req.param("id"), c.req.raw.signal)),
   );
   app.post("/api/browsers/:id/reopen", async (c) => {
     const raw = await c.req.text();
     const body = z.object({ url: z.url().max(4096).optional() }).parse(raw ? JSON.parse(raw) : {});
-    return c.json(await browser.reopen(c.get("owner"), c.req.param("id"), body.url));
+    return c.json(
+      await browser.reopen(c.get("owner"), c.req.param("id"), body.url, c.req.raw.signal),
+    );
   });
   app.post("/api/browsers/:id/import-downloads", async (c) =>
-    c.json(await browser.imports(c.get("owner"), c.req.param("id"))),
+    c.json(await browser.imports(c.get("owner"), c.req.param("id"), c.req.raw.signal)),
   );
   app.post("/api/browsers/:id/tables", async (c) => {
     const options = z
@@ -493,7 +435,9 @@ export async function createApp(
       })
       .strict()
       .parse(await c.req.json());
-    return c.json(await browser.extractTables(c.get("owner"), c.req.param("id"), options));
+    return c.json(
+      await browser.extractTables(c.get("owner"), c.req.param("id"), options, c.req.raw.signal),
+    );
   });
   app.post("/api/browsers/:id/screenshot", async (c) => {
     const options = z
@@ -509,12 +453,17 @@ export async function createApp(
       })
       .strict()
       .parse(await c.req.json());
-    const result = await browser.screenshot(c.get("owner"), c.req.param("id"), options.clip);
+    const result = await browser.screenshot(
+      c.get("owner"),
+      c.req.param("id"),
+      options.clip,
+      c.req.raw.signal,
+    );
     c.header("Content-Type", "image/png");
     return c.body(await result.arrayBuffer());
   });
   app.get("/api/browsers/:id/preview", async (c) => {
-    const response = await browser.preview(c.get("owner"), c.req.param("id"));
+    const response = await browser.preview(c.get("owner"), c.req.param("id"), c.req.raw.signal);
     c.header("Content-Type", "image/png");
     return c.body(await response.arrayBuffer());
   });
@@ -527,12 +476,12 @@ export async function createApp(
     return c.html(browser.console(c.get("owner"), c.req.param("id")));
   });
   app.post("/api/browsers/:id/console", async (c) => {
-    await browser.input(c.get("owner"), c.req.param("id"), await c.req.json());
+    await browser.input(c.get("owner"), c.req.param("id"), await c.req.json(), c.req.raw.signal);
     return c.json({ ok: true });
   });
   app.post("/api/obscura/fetch", async (c) => {
     const body = obscuraFetchSchema.parse(await c.req.json());
-    const result = await obscuraFetch(body);
+    const result = await obscuraFetch({ ...body, signal: c.req.raw.signal });
     return c.json(result);
   });
   app.all("/api/copilotkit/*", async (c) => {

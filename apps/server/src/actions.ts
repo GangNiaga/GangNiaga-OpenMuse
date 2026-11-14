@@ -4,9 +4,9 @@ import {
   type CalendarEvent,
   type ProposalInput,
   proposalSchema,
-} from "../../../packages/domain/src/index.ts";
-import type { Store } from "./db.ts";
-import { AppError } from "./errors.ts";
+} from "../../../packages/domain/src/index.js";
+import type { Store } from "./db.js";
+import { AppError } from "./errors.js";
 
 interface Options {
   execute: (

@@ -6,3 +6,8 @@ tests
 *.log
 .env
 .env.*
+.openmuse
+.openmuse/**
+coverage
+dist
+typecheck-output.txt

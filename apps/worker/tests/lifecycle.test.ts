@@ -8,9 +8,19 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { createBrowserManager } from "../src/browser.ts";
+import { browserEnvironment, createBrowserManager } from "../src/browser.ts";
 import { createBrowserFixture, fixtureOrigin, fixtureText, fixtureTitle } from "./fixtures.ts";
 import { checkBrowserWorker, type WorkerAddress } from "./worker-checks.ts";
+
+test("Chromium receives only non-secret host environment variables", () => {
+  const environment = browserEnvironment({
+    PATH: "/usr/bin",
+    DATABASE_URL: "postgresql://secret",
+    OPENAI_API_KEY: "secret",
+    WORKER_TOKEN: "secret",
+  } as NodeJS.ProcessEnv);
+  assert.deepEqual(environment, { PATH: "/usr/bin" });
+});
 
 test("real Chromium cleans failed profiles and restores a saved UUID after worker restart", {
   timeout: 90_000,

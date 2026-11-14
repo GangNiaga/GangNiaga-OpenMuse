@@ -438,6 +438,16 @@ test("detailed health is authenticated and reports real worker state", async () 
   assert.equal(typeof result.checks.tasks, "boolean");
 });
 
+test("detailed health treats an intentionally disabled task worker as ready", async () => {
+  const { app: serverlessApp } = await createApp(db, {
+    ...config,
+    taskWorkerEnabled: false,
+  });
+  const response = await serverlessApp.request("/api/health/details", { headers: headers() });
+  const result = await response.json();
+  assert.equal(result.checks.tasks, true);
+});
+
 test("extraction routes require a session and cannot reveal absent or unowned resources", async () => {
   for (const path of [
     `/api/files/${randomUUID()}/tables`,
